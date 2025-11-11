@@ -1,13 +1,9 @@
 "use client";
 
-import { useCallback, useState } from "react";
-import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/src/presentation/stores/authStore";
-import { RegisterPresenterFactory } from "./RegisterPresenter";
+import { useRouter } from "next/navigation";
+import { useCallback, useState } from "react";
 import type { RegisterData, RegisterViewModel } from "./RegisterPresenter";
-
-// Initialize presenter instance once (singleton pattern)
-const presenter = RegisterPresenterFactory.createClient();
 
 export interface RegisterPresenterState {
   viewModel: RegisterViewModel | null;
@@ -51,9 +47,7 @@ export function useRegisterPresenter(
         router.push("/play");
       } catch (err) {
         const errorMessage =
-          err instanceof Error
-            ? err.message
-            : "เกิดข้อผิดพลาดในการสมัครสมาชิก";
+          err instanceof Error ? err.message : "เกิดข้อผิดพลาดในการสมัครสมาชิก";
         setError(errorMessage);
         throw err;
       } finally {

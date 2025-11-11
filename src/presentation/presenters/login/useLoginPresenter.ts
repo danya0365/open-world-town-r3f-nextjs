@@ -1,13 +1,9 @@
 "use client";
 
-import { useCallback, useState } from "react";
-import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/src/presentation/stores/authStore";
-import { LoginPresenterFactory } from "./LoginPresenter";
+import { useRouter } from "next/navigation";
+import { useCallback, useState } from "react";
 import type { LoginData, LoginViewModel } from "./LoginPresenter";
-
-// Initialize presenter instance once (singleton pattern)
-const presenter = LoginPresenterFactory.createClient();
 
 export interface LoginPresenterState {
   viewModel: LoginViewModel | null;

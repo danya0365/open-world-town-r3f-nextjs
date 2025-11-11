@@ -1,4 +1,3 @@
-import { createServerSupabaseClient } from "@/src/infrastructure/config/supabase-server";
 import { createClientSupabaseClient } from "@/src/infrastructure/config/supabase-client";
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 
@@ -105,6 +104,9 @@ export class RegisterPresenter {
  */
 export class RegisterPresenterFactory {
   static async createServer(): Promise<RegisterPresenter> {
+    const { createServerSupabaseClient } = await import(
+      "@/src/infrastructure/config/supabase-server"
+    );
     const supabase = await createServerSupabaseClient();
     return new RegisterPresenter(supabase);
   }
