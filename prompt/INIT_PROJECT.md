@@ -21,13 +21,3 @@
 จากนั้น สร้างหน้า MainLayout พร้อม Header Footer และใส่ Theme Toggle
 
 จากนั้นสร้างหน้า Landing พร้อม master data และ mock data ที่จะใช้ใน หน้า landing ได้เลย
-
-- อัพเดต package.json
-- อัพเดต landing page
-- อัพเดต layout
-- create tailwind cn utility
-- copy env
-- init supabase
-- copy supabase migrations and seeds
-- copy public ที่มีอยู่ใน timeluxe-nextjs
-- gen Logo แล้วสร้าง favicon
