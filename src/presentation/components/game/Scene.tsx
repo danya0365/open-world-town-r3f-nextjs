@@ -8,6 +8,7 @@ import { Player } from "./Player";
 import { MultiplayerPlayers } from "./MultiplayerPlayers";
 import { DebugStats } from "./DebugStats";
 import { CollisionDebug } from "./CollisionDebug";
+import { NPCManager } from "./NPCManager";
 
 /**
  * Scene Component
@@ -81,6 +82,9 @@ export function Scene() {
 
       {/* Collision Debug Visualization */}
       <CollisionDebug />
+
+      {/* NPCs */}
+      <NPCManager />
 
       {/* Ground Plane */}
       <mesh

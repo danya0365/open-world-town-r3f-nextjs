@@ -130,6 +130,10 @@
 - [x] Add player-to-player collision detection
 - [x] Add collision debug visualizer
 - [x] Add collision toggle in controls
+- [x] Create NPC system with AI behaviors
+- [x] Add wandering NPCs
+- [x] Add patrol NPCs
+- [x] Add NPC interaction system
 - [ ] Implement lag compensation
 - [ ] Add room metadata and filtering
 

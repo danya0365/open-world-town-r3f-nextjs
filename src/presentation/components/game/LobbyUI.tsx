@@ -2,10 +2,21 @@
 
 import { useMultiplayerStore } from "@/src/presentation/stores/multiplayerStore";
 import {
+  GAME_MODES,
+  MAP_NAMES,
+  type GameMode,
+  type MapName,
+  type RoomFilterOptions,
+  type RoomSortBy,
+  type RoomSortOrder,
+} from "@/src/domain/types/room";
+import {
   ArrowRight,
+  Filter,
   Lock,
   Plus,
   RefreshCw,
+  Search,
   Unlock,
   Users,
   X,
@@ -25,10 +36,25 @@ export function LobbyUI() {
     isFetchingRooms,
   } = useMultiplayerStore();
   const [showCreateRoom, setShowCreateRoom] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
   const [username, setUsername] = useState("");
   const [roomName, setRoomName] = useState("");
   const [maxPlayers, setMaxPlayers] = useState(10);
   const [isPrivate, setIsPrivate] = useState(false);
+  const [gameMode, setGameMode] = useState<GameMode>("free_roam");
+  const [mapName, setMapName] = useState<MapName>("town_square");
+  const [roomPassword, setRoomPassword] = useState("");
+  const [passwordToJoin, setPasswordToJoin] = useState("");
+  const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
+
+  // Filter and sort state
+  const [filters, setFilters] = useState<RoomFilterOptions>({
+    showPrivate: true,
+    showPasswordProtected: true,
+    searchQuery: "",
+  });
+  const [sortBy, setSortBy] = useState<RoomSortBy>("players");
+  const [sortOrder, setSortOrder] = useState<RoomSortOrder>("desc");
 
   const handleRefreshRooms = useCallback(async () => {
     try {
@@ -59,8 +85,19 @@ export function LobbyUI() {
         roomName: roomName.trim(),
         maxClients: maxPlayers,
         isPrivate,
+        additionalOptions: {
+          gameMode,
+          mapName,
+          password: roomPassword.trim() || undefined,
+          hasPassword: !!roomPassword.trim(),
+          metadata: {
+            // Add metadata here
+          },
+        },
       });
       setShowCreateRoom(false);
+      setRoomName("");
+      setRoomPassword("");
     } catch (error) {
       console.error("Failed to create room:", error);
       alert("ไม่สามารถสร้างห้องได้");
