@@ -1,13 +1,60 @@
 import { Room, Client } from "@colyseus/core";
 import { GameState, Player } from "./schema/GameState";
 
+interface GameRoomOptions {
+  roomName?: string;
+  maxClients?: number;
+  isPrivate?: boolean;
+  username?: string;
+  mode?: string;
+  mapName?: string;
+}
+
 export class GameRoom extends Room<GameState> {
   maxClients = 50; // Maximum players per room
   state = new GameState();
   private updateInterval?: NodeJS.Timeout;
 
-  onCreate(options: any) {
+  onCreate(options: GameRoomOptions) {
     console.log("🎮 GameRoom created!", options);
+
+    const {
+      roomName,
+      maxClients,
+      isPrivate,
+      username,
+      mode,
+      mapName,
+    } = options ?? {};
+
+    if (typeof maxClients === "number" && Number.isFinite(maxClients)) {
+      const clampedMax = Math.max(1, Math.min(100, Math.floor(maxClients)));
+      this.maxClients = clampedMax;
+    }
+
+    if (typeof isPrivate === "boolean") {
+      this.setPrivate(isPrivate);
+    }
+
+    const metadata: Record<string, unknown> = {
+      roomName: roomName?.trim() || "Game Room",
+      maxClients: this.maxClients,
+      isPrivate: !!isPrivate,
+    };
+
+    if (mode) {
+      metadata.mode = mode;
+    }
+
+    if (mapName) {
+      metadata.mapName = mapName;
+    }
+
+    if (username) {
+      metadata.createdBy = username;
+    }
+
+    this.setMetadata(metadata);
 
     // Set up message handlers
     this.onMessage("move", (client, message) => {
