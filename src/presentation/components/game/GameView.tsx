@@ -4,6 +4,10 @@ import { useState } from "react";
 import { ControlsInfo } from "./Controls";
 import { DebugPanel } from "./DebugPanel";
 import { GameCanvas } from "./GameCanvas";
+import { ConnectionUI } from "./ConnectionUI";
+import { ChatUI } from "./ChatUI";
+import { ConnectionQualityIndicator } from "./ConnectionQualityIndicator";
+import { PlayerListPanel } from "./PlayerListPanel";
 
 /**
  * Game View Component
@@ -17,6 +21,15 @@ export function GameView() {
       {/* Game Canvas */}
       <GameCanvas />
 
+      {/* Connection UI */}
+      <ConnectionUI />
+
+      {/* Player List Panel */}
+      <PlayerListPanel />
+
+      {/* Chat UI */}
+      <ChatUI />
+
       {/* Debug Panel */}
       {showDebug && <DebugPanel />}
 
@@ -24,7 +37,7 @@ export function GameView() {
       <ControlsInfo />
 
       {/* Top UI Bar */}
-      <div className="absolute top-4 right-4 flex items-center gap-2 z-10">
+      <div className="absolute top-4 left-4 flex items-center gap-2 z-10">
         {/* Debug Toggle */}
         <button
           onClick={() => setShowDebug(!showDebug)}
@@ -33,6 +46,9 @@ export function GameView() {
         >
           {showDebug ? "Hide Debug" : "Show Debug"}
         </button>
+
+        {/* Connection Quality */}
+        <ConnectionQualityIndicator />
 
         {/* Menu Button */}
         <button

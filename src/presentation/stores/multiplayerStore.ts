@@ -19,6 +19,8 @@ interface MultiplayerState {
   error: string | null;
   players: Map<string, PlayerData>;
   myPlayerId: string | null;
+  lastPing: number;
+  connectionQuality: "excellent" | "good" | "poor" | "disconnected";
 }
 
 interface MultiplayerActions {
@@ -26,6 +28,7 @@ interface MultiplayerActions {
   disconnect: () => Promise<void>;
   sendMove: (position: [number, number, number], rotation: number, isMoving: boolean) => void;
   sendChat: (message: string) => void;
+  updateConnectionQuality: () => void;
 }
 
 type MultiplayerStore = MultiplayerState & MultiplayerActions;
@@ -42,6 +45,8 @@ export const useMultiplayerStore = create<MultiplayerStore>((set, get) => ({
   error: null,
   players: new Map(),
   myPlayerId: null,
+  lastPing: 0,
+  connectionQuality: "disconnected",
 
   // Actions
   connect: async (username: string) => {
@@ -111,7 +116,17 @@ export const useMultiplayerStore = create<MultiplayerStore>((set, get) => ({
         isConnected: true,
         isConnecting: false,
         myPlayerId: room.sessionId,
+        lastPing: Date.now(),
+        connectionQuality: "excellent",
       });
+
+      // Setup ping interval for connection quality
+      const pingInterval = setInterval(() => {
+        get().updateConnectionQuality();
+      }, 1000);
+
+      // Store interval for cleanup
+      (room as any)._pingInterval = pingInterval;
 
       console.log("✅ Connected to multiplayer room:", room.id);
     } catch (error) {
@@ -127,12 +142,19 @@ export const useMultiplayerStore = create<MultiplayerStore>((set, get) => ({
     const state = get();
     
     if (state.room) {
+      // Clear ping interval
+      if ((state.room as any)._pingInterval) {
+        clearInterval((state.room as any)._pingInterval);
+      }
+      
       await state.room.leave();
       set({
         room: null,
         isConnected: false,
         players: new Map(),
         myPlayerId: null,
+        lastPing: 0,
+        connectionQuality: "disconnected",
       });
     }
   },
@@ -159,5 +181,35 @@ export const useMultiplayerStore = create<MultiplayerStore>((set, get) => ({
         text: message,
       });
     }
+  },
+
+  updateConnectionQuality: () => {
+    const state = get();
+    
+    if (!state.isConnected || !state.room) {
+      set({ connectionQuality: "disconnected" });
+      return;
+    }
+
+    const now = Date.now();
+    const timeSinceLastUpdate = now - state.lastPing;
+
+    // Determine quality based on time since last update
+    let quality: "excellent" | "good" | "poor" | "disconnected";
+    
+    if (timeSinceLastUpdate < 100) {
+      quality = "excellent"; // < 100ms
+    } else if (timeSinceLastUpdate < 250) {
+      quality = "good"; // 100-250ms
+    } else if (timeSinceLastUpdate < 500) {
+      quality = "poor"; // 250-500ms
+    } else {
+      quality = "disconnected"; // > 500ms
+    }
+
+    set({ 
+      lastPing: now,
+      connectionQuality: quality 
+    });
   },
 }));

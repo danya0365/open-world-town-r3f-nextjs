@@ -6,6 +6,7 @@ interface PlayerState {
   isMoving: boolean;
   speed: number;
   sprintMultiplier: number;
+  collisionRadius: number;
 }
 
 interface PlayerActions {
@@ -26,8 +27,9 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
   position: [0, 0, 0],
   rotation: 0,
   isMoving: false,
-  speed: 3,
+  speed: 5,
   sprintMultiplier: 1.5,
+  collisionRadius: 0.4, // Half of player width
 
   // Actions
   setPosition: (position) => set({ position }),
@@ -36,25 +38,28 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
 
   setIsMoving: (isMoving) => set({ isMoving }),
 
-  movePlayer: (direction, isSprinting) => {
+  movePlayer: (direction: [number, number], isSprinting: boolean = false) => {
     const state = get();
     const speed = isSprinting
       ? state.speed * state.sprintMultiplier
       : state.speed;
+    const deltaTime = 1 / 60; // Assume 60 FPS
 
     const [dx, dz] = direction;
-    const [x, y, z] = state.position;
+    let newX = state.position[0] + dx * speed * deltaTime;
+    let newZ = state.position[2] + dz * speed * deltaTime;
 
-    // Calculate new position
-    const newX = x + dx * speed * 0.016; // Assuming 60 FPS
-    const newZ = z + dz * speed * 0.016;
+    // Simple boundary collision (world bounds)
+    const worldBounds = 50; // Match ground plane size
+    newX = Math.max(-worldBounds + state.collisionRadius, Math.min(worldBounds - state.collisionRadius, newX));
+    newZ = Math.max(-worldBounds + state.collisionRadius, Math.min(worldBounds - state.collisionRadius, newZ));
 
     // Calculate rotation based on movement direction
     if (dx !== 0 || dz !== 0) {
-      const rotation = Math.atan2(dx, dz);
+      const newRotation = Math.atan2(dx, dz);
       set({
-        position: [newX, y, newZ],
-        rotation,
+        position: [newX, state.position[1], newZ],
+        rotation: newRotation,
         isMoving: true,
       });
     } else {

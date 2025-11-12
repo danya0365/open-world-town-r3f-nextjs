@@ -2,9 +2,11 @@
 
 import { useFrame } from "@react-three/fiber";
 import { usePlayerStore } from "@/src/presentation/stores/playerStore";
+import { useMultiplayerStore } from "@/src/presentation/stores/multiplayerStore";
 import { useControls } from "./Controls";
-import { useRef } from "react";
+import { useRef, useMemo } from "react";
 import type { Mesh } from "three";
+import * as THREE from "three";
 
 /**
  * Player Component
@@ -12,11 +14,21 @@ import type { Mesh } from "three";
  */
 export function Player() {
   const meshRef = useRef<Mesh>(null);
+  const headRef = useRef<Mesh>(null);
   const { position, rotation, isMoving, movePlayer } = usePlayerStore();
+  const { sendMove, isConnected } = useMultiplayerStore();
   const keys = useControls();
+  
+  // Animation state
+  const animTime = useRef(0);
+  
+  // Color lerp for smooth transitions
+  const bodyColor = useMemo(() => new THREE.Color(), []);
+  const targetColor = isMoving ? "#4CAF50" : "#2196F3";
 
   // Update player position based on input
-  useFrame(() => {
+  useFrame((_, delta) => {
+    animTime.current += delta;
     let dx = 0;
     let dz = 0;
 
@@ -43,6 +55,26 @@ export function Player() {
     if (meshRef.current) {
       meshRef.current.position.set(...position);
       meshRef.current.rotation.y = rotation;
+      
+      // Body color animation
+      bodyColor.lerp(new THREE.Color(targetColor), 0.1);
+      if (meshRef.current.material) {
+        (meshRef.current.material as THREE.MeshStandardMaterial).color = bodyColor;
+      }
+    }
+    
+    // Head bobbing animation when moving
+    if (headRef.current && isMoving) {
+      const bobAmount = Math.sin(animTime.current * 10) * 0.05;
+      headRef.current.position.y = 1.2 + bobAmount;
+    } else if (headRef.current) {
+      // Return to original position
+      headRef.current.position.y = 1.2;
+    }
+
+    // Send position to server (throttled by frame rate)
+    if (isConnected) {
+      sendMove(position, rotation, isMoving);
     }
   });
 
@@ -55,7 +87,7 @@ export function Player() {
       </mesh>
 
       {/* Player Head */}
-      <mesh position={[position[0], position[1] + 1.2, position[2]]} castShadow>
+      <mesh ref={headRef} position={[position[0], position[1] + 1.2, position[2]]} castShadow>
         <sphereGeometry args={[0.4, 16, 16]} />
         <meshStandardMaterial color="#FFD700" />
       </mesh>

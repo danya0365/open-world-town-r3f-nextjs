@@ -5,6 +5,7 @@ import { OrbitControls } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import { Grid } from "./Grid";
 import { Player } from "./Player";
+import { MultiplayerPlayers } from "./MultiplayerPlayers";
 
 /**
  * Scene Component
@@ -69,6 +70,9 @@ export function Scene() {
 
       {/* Player */}
       <Player />
+
+      {/* Multiplayer Players */}
+      <MultiplayerPlayers />
 
       {/* Ground Plane */}
       <mesh
