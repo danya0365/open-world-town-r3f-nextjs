@@ -11,9 +11,15 @@
     "experimentalDecorators": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
+    "typeRoots": [
+      "./src/types",
+      "./node_modules/@types"
+    ],
     "useDefineForClassFields": false
   },
   "include": [
-    "src"
+    "src",
+    "src/types",
+    "tools"
   ]
 }

@@ -83,6 +83,7 @@ my-server/
 | `npm run build` | Build for production |
 | `npm test` | Run mocha test suite |
 | `npm run loadtest` | Run load testing |
+| `npm run list:endpoints` | Print registered Express routes and Colyseus rooms |
 
 ## 🌐 Client Connection
 
