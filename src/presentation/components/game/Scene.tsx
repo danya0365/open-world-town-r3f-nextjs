@@ -6,6 +6,7 @@ import { useFrame } from "@react-three/fiber";
 import { Grid } from "./Grid";
 import { Player } from "./Player";
 import { MultiplayerPlayers } from "./MultiplayerPlayers";
+import { DebugStats } from "./DebugStats";
 
 /**
  * Scene Component
@@ -37,6 +38,9 @@ export function Scene() {
 
   return (
     <>
+      {/* Debug Stats - Collects performance data */}
+      <DebugStats />
+
       {/* Lighting */}
       <ambientLight intensity={0.6} />
       <directionalLight
