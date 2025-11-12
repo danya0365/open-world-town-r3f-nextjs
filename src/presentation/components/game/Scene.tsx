@@ -1,14 +1,19 @@
 "use client";
 
+import { useCameraStore } from "@/src/presentation/stores/cameraStore";
 import { usePlayerStore } from "@/src/presentation/stores/playerStore";
-import { OrbitControls } from "@react-three/drei";
-import { useFrame } from "@react-three/fiber";
-import { Grid } from "./Grid";
-import { Player } from "./Player";
-import { MultiplayerPlayers } from "./MultiplayerPlayers";
-import { DebugStats } from "./DebugStats";
+import {
+  OrbitControls,
+  OrthographicCamera,
+  PerspectiveCamera,
+} from "@react-three/drei";
+import { useFrame, useThree } from "@react-three/fiber";
 import { CollisionDebug } from "./CollisionDebug";
+import { DebugStats } from "./DebugStats";
+import { Grid } from "./Grid";
+import { MultiplayerPlayers } from "./MultiplayerPlayers";
 import { NPCManager } from "./NPCManager";
+import { Player } from "./Player";
 
 /**
  * Scene Component
@@ -16,30 +21,91 @@ import { NPCManager } from "./NPCManager";
  */
 export function Scene() {
   const playerPosition = usePlayerStore((state) => state.position);
+  const playerRotation = usePlayerStore((state) => state.rotation);
+  const cameraMode = useCameraStore((state) => state.mode);
+  const { camera } = useThree();
 
-  // Update camera to follow player (Pure top-down view with locked angle)
-  useFrame(({ camera }) => {
-    // Smooth camera follow - follow player X and Z, keep Y fixed for top-down view
+  // Update camera to follow player with different modes
+  useFrame(() => {
     const targetX = playerPosition[0];
     const targetZ = playerPosition[2];
-    const cameraHeight = 10; // Fixed height for top-down view
+    const smoothing = 0.1;
 
-    // Smoothly interpolate camera position
-    camera.position.x += (targetX - camera.position.x) * 0.1;
-    camera.position.y = cameraHeight; // Keep camera at fixed height
-    camera.position.z += (targetZ - camera.position.z) * 0.1;
+    switch (cameraMode) {
+      case "top-down": {
+        // Orthographic top-down view
+        const cameraHeight = 10;
+        camera.position.x += (targetX - camera.position.x) * smoothing;
+        camera.position.y = cameraHeight;
+        camera.position.z += (targetZ - camera.position.z) * smoothing;
+        camera.lookAt(targetX, 0, targetZ);
 
-    // Always look straight down (top-down view) at player position
-    camera.lookAt(targetX, 0, targetZ);
+        // Force camera to look straight down
+        camera.rotation.x = -Math.PI / 2;
+        camera.rotation.z = 0;
+        break;
+      }
 
-    // Force lock camera rotation - prevent any tilting or rolling
-    // This ensures pure top-down view regardless of movement
-    camera.rotation.x = -Math.PI / 2; // Look straight down
-    camera.rotation.z = 0; // No roll
+      case "isometric": {
+        // Isometric view (45-degree angle)
+        const distance = 12;
+        const offsetX = Math.sin(Math.PI / 4) * distance;
+        const offsetZ = Math.cos(Math.PI / 4) * distance;
+        const height = distance * 0.7;
+
+        const camX = targetX + offsetX;
+        const camY = height;
+        const camZ = targetZ + offsetZ;
+
+        camera.position.x += (camX - camera.position.x) * smoothing;
+        camera.position.y += (camY - camera.position.y) * smoothing;
+        camera.position.z += (camZ - camera.position.z) * smoothing;
+        camera.lookAt(targetX, 0, targetZ);
+        break;
+      }
+
+      case "third-person": {
+        // Third-person view (behind player)
+        const distance = 6;
+        const height = 3;
+
+        // Calculate camera position behind player based on player rotation
+        const camX = targetX - Math.sin(playerRotation) * distance;
+        const camZ = targetZ - Math.cos(playerRotation) * distance;
+        const camY = height;
+
+        camera.position.x += (camX - camera.position.x) * smoothing;
+        camera.position.y += (camY - camera.position.y) * smoothing;
+        camera.position.z += (camZ - camera.position.z) * smoothing;
+
+        // Look at a point slightly above the player
+        camera.lookAt(targetX, 0.5, targetZ);
+        break;
+      }
+    }
   });
 
   return (
     <>
+      {/* Dynamic Camera based on mode */}
+      {cameraMode === "top-down" ? (
+        <OrthographicCamera
+          makeDefault
+          zoom={50}
+          position={[playerPosition[0], 10, playerPosition[2]]}
+          near={0.1}
+          far={1000}
+        />
+      ) : (
+        <PerspectiveCamera
+          makeDefault
+          fov={50}
+          position={[playerPosition[0], 10, playerPosition[2]]}
+          near={0.1}
+          far={1000}
+        />
+      )}
+
       {/* Debug Stats - Collects performance data */}
       <DebugStats />
 

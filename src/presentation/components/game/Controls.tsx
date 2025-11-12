@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { usePlayerStore } from "@/src/presentation/stores/playerStore";
+import { useCameraStore } from "@/src/presentation/stores/cameraStore";
+import { Camera, Eye } from "lucide-react";
 
 interface KeyState {
   w: boolean;
@@ -21,6 +23,7 @@ interface KeyState {
  * Manages keyboard input for player movement
  */
 export function useControls() {
+  const { cycleMode } = useCameraStore();
   const [keys, setKeys] = useState<KeyState>({
     w: false,
     a: false,
@@ -50,6 +53,10 @@ export function useControls() {
         setKeys((prev) => ({ ...prev, space: true }));
         e.preventDefault();
       }
+      if (key === "c") {
+        cycleMode();
+        e.preventDefault();
+      }
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
@@ -75,7 +82,7 @@ export function useControls() {
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
     };
-  }, []);
+  }, [cycleMode]);
 
   return keys;
 }
@@ -86,7 +93,9 @@ export function useControls() {
  */
 export function ControlsInfo() {
   const { enablePlayerCollision, togglePlayerCollision } = usePlayerStore();
+  const { mode: cameraMode, setMode: setCameraMode, cycleMode } = useCameraStore();
   const [isVisible, setIsVisible] = useState(true);
+
 
   return (
     <>
@@ -117,6 +126,59 @@ export function ControlsInfo() {
             <div>
               <span className="text-yellow-400">Space:</span> Action
             </div>
+            <div>
+              <span className="text-yellow-400">C:</span> Cycle Camera
+            </div>
+          </div>
+
+          {/* Camera Mode Switcher */}
+          <div className="mt-3 pt-3 border-t border-white/30">
+            <div className="text-xs text-gray-400 mb-2 flex items-center gap-1">
+              <Camera size={14} />
+              <span>Camera Mode</span>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setCameraMode("top-down")}
+                className={`flex-1 px-3 py-2 rounded text-xs transition-all ${
+                  cameraMode === "top-down"
+                    ? "bg-blue-600 text-white"
+                    : "bg-white/10 text-gray-300 hover:bg-white/20"
+                }`}
+                title="Top-Down View"
+              >
+                ⬇️ Top
+              </button>
+              <button
+                onClick={() => setCameraMode("isometric")}
+                className={`flex-1 px-3 py-2 rounded text-xs transition-all ${
+                  cameraMode === "isometric"
+                    ? "bg-blue-600 text-white"
+                    : "bg-white/10 text-gray-300 hover:bg-white/20"
+                }`}
+                title="Isometric View"
+              >
+                📐 Iso
+              </button>
+              <button
+                onClick={() => setCameraMode("third-person")}
+                className={`flex-1 px-3 py-2 rounded text-xs transition-all ${
+                  cameraMode === "third-person"
+                    ? "bg-blue-600 text-white"
+                    : "bg-white/10 text-gray-300 hover:bg-white/20"
+                }`}
+                title="Third-Person View"
+              >
+                👤 3rd
+              </button>
+            </div>
+            <button
+              onClick={cycleMode}
+              className="w-full mt-2 px-3 py-2 rounded text-xs bg-white/10 hover:bg-white/20 transition-colors flex items-center justify-center gap-2"
+            >
+              <Eye size={14} />
+              <span>Cycle Camera (C)</span>
+            </button>
           </div>
 
           {/* Collision Toggle */}

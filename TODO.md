@@ -134,6 +134,8 @@
 - [x] Add wandering NPCs
 - [x] Add patrol NPCs
 - [x] Add NPC interaction system
+- [x] Add camera mode switcher (Top-Down, Isometric, Third-Person)
+- [x] Implement Orthographic Camera for Top-Down mode
 - [ ] Implement lag compensation
 - [ ] Add room metadata and filtering
 
