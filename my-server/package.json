@@ -37,6 +37,8 @@
     "@colyseus/core": "^0.16.23",
     "@colyseus/monitor": "^0.16.0",
     "@colyseus/playground": "^0.16.0",
+    "@colyseus/redis-driver": "^0.16.1",
+    "@colyseus/redis-presence": "^0.16.4",
     "@colyseus/tools": "^0.16.0",
     "@colyseus/ws-transport": "^0.16.5",
     "colyseus": "^0.16.0",

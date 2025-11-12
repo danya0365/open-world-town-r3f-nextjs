@@ -87,7 +87,7 @@ export class ColyseusClient {
   ): Promise<AvailableRoom[]> {
     try {
       const { data } = await this.client.http.get<AvailableRoom[]>(
-        `/matchmake/${encodeURIComponent(roomName)}`
+        `/api/rooms/${encodeURIComponent(roomName)}`
       );
       return data ?? [];
     } catch (error) {

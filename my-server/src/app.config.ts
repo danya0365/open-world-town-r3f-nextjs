@@ -1,6 +1,7 @@
 import { monitor } from "@colyseus/monitor";
 import { playground } from "@colyseus/playground";
 import config from "@colyseus/tools";
+import { matchMaker } from "colyseus";
 
 /**
  * Import your Room files
@@ -21,6 +22,18 @@ export default config({
   },
 
   initializeExpress: (app) => {
+    // ✅ เพิ่ม endpoint สำหรับดูห้องทั้งหมด
+    app.get("/api/rooms/:roomName", async (req, res) => {
+      try {
+        const { roomName } = req.params;
+        const rooms = await matchMaker.query({ name: roomName });
+        res.json(rooms);
+      } catch (err) {
+        console.error("Failed to list rooms:", err);
+        res.status(500).json({ error: "Failed to list rooms" });
+      }
+    });
+
     /**
      * Bind your custom express routes here:
      * Read more: https://expressjs.com/en/starter/basic-routing.html
@@ -34,7 +47,7 @@ export default config({
      * (It is not recommended to expose this route in a production environment)
      */
     if (process.env.NODE_ENV !== "production") {
-      app.use("/", playground());
+      app.use("/playground", playground());
     }
 
     /**
