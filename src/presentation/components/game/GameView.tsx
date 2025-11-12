@@ -10,6 +10,10 @@ import { ConnectionQualityIndicator } from "./ConnectionQualityIndicator";
 import { PlayerListPanel } from "./PlayerListPanel";
 import { LobbyUI } from "./LobbyUI";
 import { GameModeIndicator } from "./GameModeIndicator";
+import { VoiceVideoControls } from "./VoiceVideoControls";
+import { VideoGrid } from "./VideoGrid";
+import { VoiceVideoSync } from "./VoiceVideoSync";
+import { SpatialAudioManager } from "./SpatialAudioManager";
 import { useMultiplayerStore } from "@/src/presentation/stores/multiplayerStore";
 
 /**
@@ -39,6 +43,12 @@ export function GameView() {
 
       {/* Chat UI */}
       <ChatUI />
+
+      {/* Voice/Video Components */}
+      <VoiceVideoSync />
+      <SpatialAudioManager />
+      <VoiceVideoControls />
+      <VideoGrid />
 
       {/* Debug Panel */}
       {showDebug && <DebugPanel />}

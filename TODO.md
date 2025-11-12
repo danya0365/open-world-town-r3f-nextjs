@@ -144,12 +144,12 @@
 - [ ] Implement game mode mechanics (combat, objectives)
 
 ### 3.3 PeerJS Integration
-- [ ] Setup PeerJS for WebRTC
-- [ ] Implement video chat system
+- [x] Setup PeerJS for WebRTC
+- [x] Implement video chat system
 - [ ] Add screen sharing feature
-- [ ] Create video/audio controls
-- [ ] Implement spatial audio (proximity-based)
-- [ ] Add mute/unmute functionality
+- [x] Create video/audio controls
+- [x] Implement spatial audio (proximity-based)
+- [x] Add mute/unmute functionality
 
 ---
 
