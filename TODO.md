@@ -127,8 +127,10 @@
 - [x] Create Lobby/Room Selection UI (LobbyUI.tsx)
 - [x] Add create/join room functionality
 - [x] Add room list with auto-refresh
+- [x] Add player-to-player collision detection
+- [x] Add collision debug visualizer
+- [x] Add collision toggle in controls
 - [ ] Implement lag compensation
-- [ ] Add player-to-player collision detection
 - [ ] Add room metadata and filtering
 
 ### 3.3 PeerJS Integration

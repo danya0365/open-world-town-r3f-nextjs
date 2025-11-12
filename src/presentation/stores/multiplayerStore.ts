@@ -60,7 +60,13 @@ type MultiplayerStore = MultiplayerState & MultiplayerActions;
  * Multiplayer Store using Zustand
  * Manages Colyseus connection and multiplayer state
  */
-export const useMultiplayerStore = create<MultiplayerStore>((set, get) => ({
+export const useMultiplayerStore = create<MultiplayerStore>((set, get) => {
+  // Store reference globally for collision detection
+  if (typeof window !== "undefined") {
+    (window as typeof window & { __multiplayerStore?: { getState: typeof get } }).__multiplayerStore = { getState: get };
+  }
+
+  return {
   // Initial State
   room: null,
   isConnected: false,
@@ -282,4 +288,5 @@ export const useMultiplayerStore = create<MultiplayerStore>((set, get) => ({
       set({ availableRooms: [], isFetchingRooms: false });
     }
   },
-}));
+};
+});

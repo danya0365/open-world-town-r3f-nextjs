@@ -1,4 +1,8 @@
 import { create } from "zustand";
+import {
+  checkCircleCollision,
+  resolveCircleCollision,
+} from "../utils/collision";
 
 interface PlayerState {
   position: [number, number, number];
@@ -7,6 +11,7 @@ interface PlayerState {
   speed: number;
   sprintMultiplier: number;
   collisionRadius: number;
+  enablePlayerCollision: boolean;
 }
 
 interface PlayerActions {
@@ -14,6 +19,7 @@ interface PlayerActions {
   setRotation: (rotation: number) => void;
   setIsMoving: (isMoving: boolean) => void;
   movePlayer: (direction: [number, number], isSprinting: boolean) => void;
+  togglePlayerCollision: () => void;
 }
 
 type PlayerStore = PlayerState & PlayerActions;
@@ -30,6 +36,7 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
   speed: 5,
   sprintMultiplier: 1.5,
   collisionRadius: 0.4, // Half of player width
+  enablePlayerCollision: true,
 
   // Actions
   setPosition: (position) => set({ position }),
@@ -51,8 +58,45 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
 
     // Simple boundary collision (world bounds)
     const worldBounds = 50; // Match ground plane size
-    newX = Math.max(-worldBounds + state.collisionRadius, Math.min(worldBounds - state.collisionRadius, newX));
-    newZ = Math.max(-worldBounds + state.collisionRadius, Math.min(worldBounds - state.collisionRadius, newZ));
+    newX = Math.max(
+      -worldBounds + state.collisionRadius,
+      Math.min(worldBounds - state.collisionRadius, newX)
+    );
+    newZ = Math.max(
+      -worldBounds + state.collisionRadius,
+      Math.min(worldBounds - state.collisionRadius, newZ)
+    );
+
+    // Check collision with other players if enabled
+    if (state.enablePlayerCollision) {
+      // Get multiplayer players from store
+      // We'll use a global reference to avoid circular dependencies
+      if (typeof window !== "undefined") {
+        const multiplayerStore = (window as typeof window & { __multiplayerStore?: { getState: () => { players: Map<string, { id: string; x: number; z: number }> } } }).__multiplayerStore;
+
+        if (multiplayerStore) {
+          const { players } = multiplayerStore.getState();
+
+          // Check collision with each player
+          players.forEach((player) => {
+            const collision = checkCircleCollision(
+              { x: newX, z: newZ, radius: state.collisionRadius },
+              { x: player.x, z: player.z, radius: state.collisionRadius }
+            );
+
+            if (collision) {
+              // Resolve collision by pushing player away
+              const resolved = resolveCircleCollision(
+                { x: newX, z: newZ, radius: state.collisionRadius },
+                { x: player.x, z: player.z, radius: state.collisionRadius }
+              );
+              newX = resolved.x;
+              newZ = resolved.z;
+            }
+          });
+        }
+      }
+    }
 
     // Calculate rotation based on movement direction
     if (dx !== 0 || dz !== 0) {
@@ -66,4 +110,9 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
       set({ isMoving: false });
     }
   },
+
+  togglePlayerCollision: () =>
+    set((state) => ({
+      enablePlayerCollision: !state.enablePlayerCollision,
+    })),
 }));

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePlayerStore } from "@/src/presentation/stores/playerStore";
 
 interface KeyState {
   w: boolean;
@@ -84,6 +85,7 @@ export function useControls() {
  * Displays keyboard controls for the player
  */
 export function ControlsInfo() {
+  const { enablePlayerCollision, togglePlayerCollision } = usePlayerStore();
   const [isVisible, setIsVisible] = useState(true);
 
   return (
@@ -115,6 +117,24 @@ export function ControlsInfo() {
             <div>
               <span className="text-yellow-400">Space:</span> Action
             </div>
+          </div>
+
+          {/* Collision Toggle */}
+          <div className="mt-3 pt-3 border-t border-white/30">
+            <label className="flex items-center gap-2 cursor-pointer hover:bg-white/10 p-2 rounded transition-colors">
+              <input
+                type="checkbox"
+                checked={enablePlayerCollision}
+                onChange={togglePlayerCollision}
+                className="w-4 h-4 cursor-pointer accent-green-500"
+              />
+              <span className="text-sm">
+                Player Collision{" "}
+                <span className="text-green-400 text-xs">
+                  ({enablePlayerCollision ? "ON" : "OFF"})
+                </span>
+              </span>
+            </label>
           </div>
         </div>
       )}

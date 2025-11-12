@@ -7,6 +7,7 @@ import { Grid } from "./Grid";
 import { Player } from "./Player";
 import { MultiplayerPlayers } from "./MultiplayerPlayers";
 import { DebugStats } from "./DebugStats";
+import { CollisionDebug } from "./CollisionDebug";
 
 /**
  * Scene Component
@@ -77,6 +78,9 @@ export function Scene() {
 
       {/* Multiplayer Players */}
       <MultiplayerPlayers />
+
+      {/* Collision Debug Visualization */}
+      <CollisionDebug />
 
       {/* Ground Plane */}
       <mesh
