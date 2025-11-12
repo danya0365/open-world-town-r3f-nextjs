@@ -136,6 +136,7 @@
 - [x] Add NPC interaction system
 - [x] Add camera mode switcher (Top-Down, Isometric, Third-Person)
 - [x] Implement Orthographic Camera for Top-Down mode
+- [x] Implement server-side NPC synchronization for multiplayer
 - [ ] Implement lag compensation
 - [ ] Add room metadata and filtering
 

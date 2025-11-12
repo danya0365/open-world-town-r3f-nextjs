@@ -16,6 +16,20 @@ export interface MapSchemaLike<T> {
 
 export interface GameRoomState {
   players: MapSchemaLike<MultiplayerPlayerState>;
+  npcs?: MapSchemaLike<{
+    id: string;
+    name: string;
+    type: string;
+    behavior: string;
+    x: number;
+    y: number;
+    z: number;
+    rotation: number;
+    speed: number;
+    health: number;
+    maxHealth: number;
+    isInteractable: boolean;
+  }>;
   serverTime: number;
 }
 

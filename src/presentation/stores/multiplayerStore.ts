@@ -23,12 +23,39 @@ interface PlayerData {
   isMoving: boolean;
 }
 
+interface MultiplayerPlayer {
+  id: string;
+  username: string;
+  x: number;
+  y: number;
+  z: number;
+  rotation: number;
+  isMoving: boolean;
+  timestamp: number;
+}
+
+interface MultiplayerNPC {
+  id: string;
+  name: string;
+  type: string;
+  behavior: string;
+  x: number;
+  y: number;
+  z: number;
+  rotation: number;
+  speed: number;
+  health: number;
+  maxHealth: number;
+  isInteractable: boolean;
+}
+
 interface MultiplayerState {
   room: Room<GameRoomState> | null;
   isConnected: boolean;
   isConnecting: boolean;
   error: string | null;
   players: Map<string, PlayerData>;
+  npcs: Map<string, MultiplayerNPC>;
   myPlayerId: string | null;
   lastPing: number;
   connectionQuality: "excellent" | "good" | "poor" | "disconnected";
@@ -73,6 +100,7 @@ export const useMultiplayerStore = create<MultiplayerStore>((set, get) => {
   isConnecting: false,
   error: null,
   players: new Map(),
+  npcs: new Map(),
   myPlayerId: null,
   lastPing: 0,
   connectionQuality: "disconnected",
@@ -121,26 +149,44 @@ export const useMultiplayerStore = create<MultiplayerStore>((set, get) => {
       }
 
       // Setup room event handlers
-      room.onStateChange((roomState) => {
-        const playersMap = new Map<string, PlayerData>();
-        
-        roomState.players.forEach((player: MultiplayerPlayerState | undefined, key: string) => {
-          if (!player) {
-            return;
-          }
+      room.onStateChange((state: GameRoomState) => {
+        const newPlayers = new Map<string, MultiplayerPlayer>();
+        const newNPCs = new Map<string, MultiplayerNPC>();
 
-          playersMap.set(key, {
-            id: player.id,
+        state.players.forEach((player, playerId) => {
+          newPlayers.set(playerId, {
+            id: playerId,
             username: player.username,
             x: player.x,
             y: player.y,
             z: player.z,
             rotation: player.rotation,
             isMoving: player.isMoving,
+            timestamp: player.timestamp,
           });
         });
 
-        set({ players: playersMap });
+        // Sync NPCs from server
+        if (state.npcs) {
+          state.npcs.forEach((npc: any, npcId: string) => {
+            newNPCs.set(npcId, {
+              id: npcId,
+              name: npc.name,
+              type: npc.type,
+              behavior: npc.behavior,
+              x: npc.x,
+              y: npc.y,
+              z: npc.z,
+              rotation: npc.rotation,
+              speed: npc.speed,
+              health: npc.health,
+              maxHealth: npc.maxHealth,
+              isInteractable: npc.isInteractable,
+            });
+          });
+        }
+
+        set({ players: newPlayers, npcs: newNPCs });
       });
 
       room.onMessage<PlayerJoinedMessage>("player_joined", (message) => {
@@ -160,13 +206,14 @@ export const useMultiplayerStore = create<MultiplayerStore>((set, get) => {
         set({ error: `Room error: ${message}` });
       });
 
-      room.onLeave((code) => {
-        console.log("Left room with code:", code);
+      room.onLeave(() => {
+        console.log("👋 Left room");
         set({
-          room: null,
           isConnected: false,
-          players: new Map(),
+          room: null,
           myPlayerId: null,
+          players: new Map(),
+          npcs: new Map(),
         });
       });
 

@@ -1,5 +1,5 @@
 import { Room, Client } from "@colyseus/core";
-import { GameState, Player } from "./schema/GameState";
+import { GameState, Player, NPC } from "./schema/GameState";
 
 interface GameRoomOptions {
   roomName?: string;
@@ -14,6 +14,7 @@ export class GameRoom extends Room<GameState> {
   maxClients = 50; // Maximum players per room
   state = new GameState();
   private updateInterval?: NodeJS.Timeout;
+  private npcIdCounter = 0;
 
   onCreate(options: GameRoomOptions) {
     console.log("🎮 GameRoom created!", options);
@@ -72,6 +73,9 @@ export class GameRoom extends Room<GameState> {
         { except: client }
       );
     });
+
+    // Spawn initial NPCs
+    this.spawnInitialNPCs();
 
     // Game loop - Update state every 16ms (~60 FPS)
     this.updateInterval = setInterval(() => {
@@ -155,12 +159,100 @@ export class GameRoom extends Room<GameState> {
   }
 
   /**
+   * Spawn initial NPCs
+   */
+  private spawnInitialNPCs() {
+    // Spawn villager
+    const villager = new NPC();
+    villager.id = `npc_${this.npcIdCounter++}`;
+    villager.name = "John";
+    villager.type = "villager";
+    villager.behavior = "wander";
+    villager.x = 5;
+    villager.z = 5;
+    this.state.npcs.set(villager.id, villager);
+
+    // Spawn merchant
+    const merchant = new NPC();
+    merchant.id = `npc_${this.npcIdCounter++}`;
+    merchant.name = "Merchant Bob";
+    merchant.type = "merchant";
+    merchant.behavior = "idle";
+    merchant.x = -8;
+    merchant.z = 3;
+    this.state.npcs.set(merchant.id, merchant);
+
+    // Spawn guard
+    const guard = new NPC();
+    guard.id = `npc_${this.npcIdCounter++}`;
+    guard.name = "Guard Tom";
+    guard.type = "guard";
+    guard.behavior = "patrol";
+    guard.x = 0;
+    guard.z = -10;
+    this.state.npcs.set(guard.id, guard);
+
+    // Spawn animal
+    const animal = new NPC();
+    animal.id = `npc_${this.npcIdCounter++}`;
+    animal.name = "Dog";
+    animal.type = "animal";
+    animal.behavior = "wander";
+    animal.x = -5;
+    animal.z = -5;
+    this.state.npcs.set(animal.id, animal);
+
+    console.log(`✅ Spawned ${this.state.npcs.size} NPCs`);
+  }
+
+  /**
    * Update game state (60 FPS)
    */
   private updateGameState() {
     // Update server timestamp
     this.state.serverTime = Date.now();
 
-    // Future: Add NPC movement, physics, etc.
+    // Update NPC AI
+    this.state.npcs.forEach((npc) => {
+      this.updateNPCAI(npc);
+    });
+  }
+
+  /**
+   * Update NPC AI behavior
+   */
+  private updateNPCAI(npc: NPC) {
+    const deltaTime = 1 / 60; // 60 FPS
+
+    switch (npc.behavior) {
+      case "wander":
+        // Random wandering
+        if (Math.random() < 0.02) {
+          const angle = Math.random() * Math.PI * 2;
+          const distance = npc.speed * deltaTime;
+          npc.x += Math.cos(angle) * distance;
+          npc.z += Math.sin(angle) * distance;
+          npc.rotation = angle;
+
+          // Keep within bounds
+          npc.x = Math.max(-45, Math.min(45, npc.x));
+          npc.z = Math.max(-45, Math.min(45, npc.z));
+        }
+        break;
+
+      case "patrol":
+        // Simple patrol pattern (will implement full patrol points later)
+        const time = Date.now() / 1000;
+        const patrolRadius = 5;
+        npc.x = Math.cos(time * 0.5) * patrolRadius;
+        npc.z = -10 + Math.sin(time * 0.5) * patrolRadius;
+        npc.rotation = Math.atan2(Math.sin(time * 0.5), Math.cos(time * 0.5));
+        break;
+
+      case "idle":
+      default:
+        // Do nothing
+        break;
+    }
   }
 }
