@@ -2,6 +2,7 @@
 
 import { useCameraStore } from "@/src/presentation/stores/cameraStore";
 import { usePlayerStore } from "@/src/presentation/stores/playerStore";
+import { useGameStore } from "@/src/presentation/stores/gameStore";
 import {
   OrbitControls,
   OrthographicCamera,
@@ -14,6 +15,11 @@ import { Grid } from "./Grid";
 import { MultiplayerPlayers } from "./MultiplayerPlayers";
 import { NPCManager } from "./NPCManager";
 import { Player } from "./Player";
+import {
+  MapManager,
+  getAmbientLightColor,
+  getDirectionalLightColor,
+} from "./MapManager";
 
 /**
  * Scene Component
@@ -23,6 +29,7 @@ export function Scene() {
   const playerPosition = usePlayerStore((state) => state.position);
   const playerRotation = usePlayerStore((state) => state.rotation);
   const cameraMode = useCameraStore((state) => state.mode);
+  const mapName = useGameStore((state) => state.mapName);
   const { camera } = useThree();
 
   // Update camera to follow player with different modes
@@ -109,9 +116,10 @@ export function Scene() {
       {/* Debug Stats - Collects performance data */}
       <DebugStats />
 
-      {/* Lighting */}
-      <ambientLight intensity={0.6} />
+      {/* Dynamic Lighting based on Map */}
+      <ambientLight color={getAmbientLightColor(mapName)} intensity={0.6} />
       <directionalLight
+        color={getDirectionalLightColor(mapName)}
         position={[10, 20, 10]}
         intensity={1}
         castShadow
@@ -152,15 +160,8 @@ export function Scene() {
       {/* NPCs */}
       <NPCManager />
 
-      {/* Ground Plane */}
-      <mesh
-        rotation={[-Math.PI / 2, 0, 0]}
-        position={[0, -0.01, 0]}
-        receiveShadow
-      >
-        <planeGeometry args={[100, 100]} />
-        <meshStandardMaterial color="#228B22" />
-      </mesh>
+      {/* Dynamic Map Environment */}
+      <MapManager />
     </>
   );
 }

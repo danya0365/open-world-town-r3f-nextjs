@@ -73,6 +73,76 @@ export function LobbyUI() {
     }
   }, [isConnected, handleRefreshRooms]);
 
+  // Filter and sort rooms
+  const filteredAndSortedRooms = useCallback(() => {
+    let filtered = [...availableRooms];
+
+    // Apply filters
+    if (!filters.showPrivate) {
+      filtered = filtered.filter((room) => !room.metadata?.isPrivate);
+    }
+
+    if (!filters.showPasswordProtected) {
+      filtered = filtered.filter((room) => !room.metadata?.hasPassword);
+    }
+
+    if (filters.gameMode) {
+      filtered = filtered.filter(
+        (room) => room.metadata?.mode === filters.gameMode
+      );
+    }
+
+    if (filters.minPlayers !== undefined) {
+      filtered = filtered.filter(
+        (room) => room.clients >= (filters.minPlayers || 0)
+      );
+    }
+
+    if (filters.maxPlayers !== undefined) {
+      filtered = filtered.filter(
+        (room) => room.clients <= (filters.maxPlayers || 100)
+      );
+    }
+
+    if (filters.searchQuery) {
+      const query = filters.searchQuery.toLowerCase();
+      filtered = filtered.filter(
+        (room) =>
+          String(room.metadata?.roomName || "").toLowerCase().includes(query) ||
+          String(room.name || "").toLowerCase().includes(query)
+      );
+    }
+
+    // Apply sorting
+    filtered.sort((a, b) => {
+      let comparison = 0;
+
+      switch (sortBy) {
+        case "players":
+          comparison = a.clients - b.clients;
+          break;
+        case "name":
+          comparison = String(a.metadata?.roomName || a.name || "").localeCompare(
+            String(b.metadata?.roomName || b.name || "")
+          );
+          break;
+        case "created":
+          comparison =
+            Number(a.metadata?.createdAt || 0) - Number(b.metadata?.createdAt || 0);
+          break;
+        case "mode":
+          comparison = String(a.metadata?.mode || "").localeCompare(
+            String(b.metadata?.mode || "")
+          );
+          break;
+      }
+
+      return sortOrder === "asc" ? comparison : -comparison;
+    });
+
+    return filtered;
+  }, [availableRooms, filters, sortBy, sortOrder]);
+
   const handleCreateRoom = async () => {
     if (!username.trim() || !roomName.trim()) {
       alert("กรุณากรอกชื่อผู้เล่นและชื่อห้อง");
@@ -86,13 +156,10 @@ export function LobbyUI() {
         maxClients: maxPlayers,
         isPrivate,
         additionalOptions: {
-          gameMode,
+          mode: gameMode,
           mapName,
           password: roomPassword.trim() || undefined,
           hasPassword: !!roomPassword.trim(),
-          metadata: {
-            // Add metadata here
-          },
         },
       });
       setShowCreateRoom(false);
@@ -224,6 +291,53 @@ export function LobbyUI() {
                 />
               </div>
 
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  โหมดเกม
+                </label>
+                <select
+                  value={gameMode}
+                  onChange={(e) => setGameMode(e.target.value as GameMode)}
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  {Object.entries(GAME_MODES).map(([key, value]) => (
+                    <option key={key} value={key}>
+                      {value.icon} {value.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  แผนที่
+                </label>
+                <select
+                  value={mapName}
+                  onChange={(e) => setMapName(e.target.value as MapName)}
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  {Object.entries(MAP_NAMES).map(([key, value]) => (
+                    <option key={key} value={key}>
+                      {value.icon} {value.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  รหัสผ่าน (ถ้ามี)
+                </label>
+                <input
+                  type="password"
+                  value={roomPassword}
+                  onChange={(e) => setRoomPassword(e.target.value)}
+                  placeholder="ไม่บังคับ..."
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
               <div className="flex items-center gap-2">
                 <input
                   type="checkbox"
@@ -270,11 +384,111 @@ export function LobbyUI() {
                 </button>
               </div>
 
+              {/* Filter and Search */}
+              <div className="mb-4 space-y-3">
+                <div className="relative">
+                  <Search className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+                  <input
+                    type="text"
+                    value={filters.searchQuery}
+                    onChange={(e) =>
+                      setFilters({ ...filters, searchQuery: e.target.value })
+                    }
+                    placeholder="ค้นหาห้อง..."
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    onClick={() => setShowFilters(!showFilters)}
+                    className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 flex items-center gap-1"
+                  >
+                    <Filter className="w-4 h-4" />
+                    <span>ตัวกรอง</span>
+                  </button>
+
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as RoomSortBy)}
+                    className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+                  >
+                    <option value="players">จำนวนผู้เล่น</option>
+                    <option value="name">ชื่อห้อง</option>
+                    <option value="created">สร้างล่าสุด</option>
+                    <option value="mode">โหมดเกม</option>
+                  </select>
+
+                  <button
+                    onClick={() =>
+                      setSortOrder(sortOrder === "asc" ? "desc" : "asc")
+                    }
+                    className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600"
+                  >
+                    {sortOrder === "asc" ? "↑" : "↓"}
+                  </button>
+                </div>
+
+                {showFilters && (
+                  <div className="p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 space-y-2">
+                    <div className="grid grid-cols-2 gap-2">
+                      <label className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={filters.showPrivate}
+                          onChange={(e) =>
+                            setFilters({
+                              ...filters,
+                              showPrivate: e.target.checked,
+                            })
+                          }
+                          className="w-4 h-4"
+                        />
+                        <span>แสดงห้องส่วนตัว</span>
+                      </label>
+                      <label className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={filters.showPasswordProtected}
+                          onChange={(e) =>
+                            setFilters({
+                              ...filters,
+                              showPasswordProtected: e.target.checked,
+                            })
+                          }
+                          className="w-4 h-4"
+                        />
+                        <span>แสดงห้องมีรหัส</span>
+                      </label>
+                    </div>
+                    <select
+                      value={filters.gameMode || ""}
+                      onChange={(e) =>
+                        setFilters({
+                          ...filters,
+                          gameMode: e.target.value
+                            ? (e.target.value as GameMode)
+                            : undefined,
+                        })
+                      }
+                      className="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
+                    >
+                      <option value="">ทุกโหมดเกม</option>
+                      {Object.entries(GAME_MODES).map(([key, value]) => (
+                        <option key={key} value={key}>
+                          {value.icon} {value.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+
               {/* Room List Header */}
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
                   <Users className="w-5 h-5" />
-                  ห้องที่เปิดอยู่ ({availableRooms.length})
+                  ห้องที่เปิดอยู่ ({filteredAndSortedRooms().length}/{availableRooms.length})
                 </h2>
                 <button
                   onClick={() => {
@@ -298,12 +512,12 @@ export function LobbyUI() {
                   <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                     กำลังโหลด...
                   </div>
-                ) : availableRooms.length === 0 ? (
+                ) : filteredAndSortedRooms().length === 0 ? (
                   <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                     ไม่มีห้องที่เปิดอยู่
                   </div>
                 ) : (
-                  availableRooms.map((room) => {
+                  filteredAndSortedRooms().map((room) => {
                     const isFull = room.clients >= room.maxClients;
                     const metadata = room.metadata as
                       | (Record<string, unknown> & {

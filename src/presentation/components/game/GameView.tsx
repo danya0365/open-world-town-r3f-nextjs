@@ -9,6 +9,7 @@ import { ChatUI } from "./ChatUI";
 import { ConnectionQualityIndicator } from "./ConnectionQualityIndicator";
 import { PlayerListPanel } from "./PlayerListPanel";
 import { LobbyUI } from "./LobbyUI";
+import { GameModeIndicator } from "./GameModeIndicator";
 import { useMultiplayerStore } from "@/src/presentation/stores/multiplayerStore";
 
 /**
@@ -29,6 +30,9 @@ export function GameView() {
 
       {/* Connection UI */}
       <ConnectionUI />
+
+      {/* Game Mode Indicator */}
+      {isConnected && <GameModeIndicator />}
 
       {/* Player List Panel */}
       <PlayerListPanel />
