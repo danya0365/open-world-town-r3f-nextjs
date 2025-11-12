@@ -1,4 +1,18 @@
+import {
+  type GameRoomState,
+  type RoomJoinOptions,
+} from "@/src/domain/types/multiplayer";
 import { Client, Room } from "colyseus.js";
+
+export interface AvailableRoom {
+  roomId: string;
+  clients: number;
+  maxClients: number;
+  name?: string;
+  metadata?: Record<string, unknown>;
+  createdAt?: string;
+  locked?: boolean;
+}
 
 const COLYSEUS_HOST = process.env.NEXT_PUBLIC_COLYSEUS_HOST || "localhost";
 const COLYSEUS_PORT = process.env.NEXT_PUBLIC_COLYSEUS_PORT || "2567";
@@ -23,10 +37,16 @@ export class ColyseusClient {
     return ColyseusClient.instance;
   }
 
-  async joinOrCreateRoom(roomName: string, options: any = {}): Promise<Room> {
+  async joinOrCreateRoom(
+    roomName: string,
+    options: RoomJoinOptions
+  ): Promise<Room<GameRoomState>> {
     try {
-      const room = await this.client.joinOrCreate(roomName, options);
-      console.log("✅ Successfully joined room:", room.id);
+      const room = await this.client.joinOrCreate<GameRoomState>(
+        roomName,
+        options
+      );
+      console.log("✅ Successfully joined room:", room);
       return room;
     } catch (error) {
       console.error("❌ Failed to join room:", error);
@@ -34,10 +54,13 @@ export class ColyseusClient {
     }
   }
 
-  async joinRoomById(roomId: string, options: any = {}): Promise<Room> {
+  async joinRoomById(
+    roomId: string,
+    options: RoomJoinOptions
+  ): Promise<Room<GameRoomState>> {
     try {
-      const room = await this.client.joinById(roomId, options);
-      console.log("✅ Successfully joined room:", room.id);
+      const room = await this.client.joinById<GameRoomState>(roomId, options);
+      console.log("✅ Successfully joined room:", room);
       return room;
     } catch (error) {
       console.error("❌ Failed to join room by ID:", error);
@@ -45,10 +68,13 @@ export class ColyseusClient {
     }
   }
 
-  async createRoom(roomName: string, options: any = {}): Promise<Room> {
+  async createRoom(
+    roomName: string,
+    options: RoomJoinOptions
+  ): Promise<Room<GameRoomState>> {
     try {
-      const room = await this.client.create(roomName, options);
-      console.log("✅ Successfully created room:", room.id);
+      const room = await this.client.create<GameRoomState>(roomName, options);
+      console.log("✅ Successfully created room:", room);
       return room;
     } catch (error) {
       console.error("❌ Failed to create room:", error);
@@ -56,10 +82,14 @@ export class ColyseusClient {
     }
   }
 
-  async getAvailableRooms(roomName: string = "game_room") {
+  async getAvailableRooms(
+    roomName: string = "game_room"
+  ): Promise<AvailableRoom[]> {
     try {
-      const rooms = await this.client.getAvailableRooms(roomName);
-      return rooms;
+      const { data } = await this.client.http.get<AvailableRoom[]>(
+        `/matchmake/${encodeURIComponent(roomName)}`
+      );
+      return data ?? [];
     } catch (error) {
       console.error("❌ Failed to get available rooms:", error);
       throw error;

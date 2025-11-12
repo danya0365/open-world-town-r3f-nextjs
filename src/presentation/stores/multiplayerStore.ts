@@ -1,6 +1,17 @@
 import { create } from "zustand";
 import type { Room } from "colyseus.js";
-import { colyseusClient } from "@/src/infrastructure/multiplayer/ColyseusClient";
+import {
+  colyseusClient,
+  type AvailableRoom,
+} from "@/src/infrastructure/multiplayer/ColyseusClient";
+import {
+  type ChatMessage,
+  type GameRoomState,
+  type MultiplayerPlayerState,
+  type PlayerJoinedMessage,
+  type PlayerLeftMessage,
+  type RoomJoinOptions,
+} from "@/src/domain/types/multiplayer";
 
 interface PlayerData {
   id: string;
@@ -13,7 +24,7 @@ interface PlayerData {
 }
 
 interface MultiplayerState {
-  room: Room | null;
+  room: Room<GameRoomState> | null;
   isConnected: boolean;
   isConnecting: boolean;
   error: string | null;
@@ -21,20 +32,26 @@ interface MultiplayerState {
   myPlayerId: string | null;
   lastPing: number;
   connectionQuality: "excellent" | "good" | "poor" | "disconnected";
+  availableRooms: AvailableRoom[];
+  isFetchingRooms: boolean;
+}
+
+interface ConnectOptions {
+  create?: boolean;
+  roomId?: string;
+  roomName?: string;
+  maxClients?: number;
+  isPrivate?: boolean;
+  additionalOptions?: Omit<RoomJoinOptions, "username" | "roomName" | "maxClients" | "isPrivate">;
 }
 
 interface MultiplayerActions {
-  connect: (username: string, options?: {
-    create?: boolean;
-    roomId?: string;
-    roomName?: string;
-    maxClients?: number;
-    isPrivate?: boolean;
-  }) => Promise<void>;
+  connect: (username: string, options?: ConnectOptions) => Promise<void>;
   disconnect: () => Promise<void>;
   sendMove: (position: [number, number, number], rotation: number, isMoving: boolean) => void;
   sendChat: (message: string) => void;
   updateConnectionQuality: () => void;
+  fetchRooms: (roomName?: string) => Promise<void>;
 }
 
 type MultiplayerStore = MultiplayerState & MultiplayerActions;
@@ -53,17 +70,13 @@ export const useMultiplayerStore = create<MultiplayerStore>((set, get) => ({
   myPlayerId: null,
   lastPing: 0,
   connectionQuality: "disconnected",
+  availableRooms: [],
+  isFetchingRooms: false,
 
   // Actions
-  connect: async (username: string, options?: {
-    create?: boolean;
-    roomId?: string;
-    roomName?: string;
-    maxClients?: number;
-    isPrivate?: boolean;
-  }) => {
+  connect: async (username: string, options?: ConnectOptions) => {
     const state = get();
-    
+
     if (state.isConnected || state.isConnecting) {
       console.warn("Already connected or connecting");
       return;
@@ -74,31 +87,42 @@ export const useMultiplayerStore = create<MultiplayerStore>((set, get) => ({
     try {
       console.log("🎮 Connecting to multiplayer server...");
 
-      let room;
+      const {
+        roomId,
+        create: shouldCreate,
+        roomName,
+        maxClients,
+        isPrivate,
+        additionalOptions,
+      } = options ?? {};
 
-      // Join specific room by ID
-      if (options?.roomId) {
-        room = await colyseusClient.joinRoomById(options.roomId, { username });
-      }
-      // Create new room
-      else if (options?.create) {
-        room = await colyseusClient.createRoom("game_room", {
-          username,
-          roomName: options.roomName,
-          maxClients: options.maxClients,
-          isPrivate: options.isPrivate,
-        });
-      }
-      // Quick join (join or create)
-      else {
-        room = await colyseusClient.joinOrCreateRoom("game_room", { username });
+      const joinOptions: RoomJoinOptions = {
+        username,
+        ...(roomName ? { roomName } : {}),
+        ...(typeof maxClients === "number" ? { maxClients } : {}),
+        ...(typeof isPrivate === "boolean" ? { isPrivate } : {}),
+        ...(additionalOptions ?? {}),
+      };
+
+      let room: Room<GameRoomState>;
+
+      if (roomId) {
+        room = await colyseusClient.joinRoomById(roomId, joinOptions);
+      } else if (shouldCreate) {
+        room = await colyseusClient.createRoom("game_room", joinOptions);
+      } else {
+        room = await colyseusClient.joinOrCreateRoom("game_room", joinOptions);
       }
 
       // Setup room event handlers
-      room.onStateChange((state) => {
+      room.onStateChange((roomState) => {
         const playersMap = new Map<string, PlayerData>();
         
-        state.players.forEach((player: any, key: string) => {
+        roomState.players.forEach((player: MultiplayerPlayerState | undefined, key: string) => {
+          if (!player) {
+            return;
+          }
+
           playersMap.set(key, {
             id: player.id,
             username: player.username,
@@ -113,15 +137,15 @@ export const useMultiplayerStore = create<MultiplayerStore>((set, get) => ({
         set({ players: playersMap });
       });
 
-      room.onMessage("player_joined", (message) => {
+      room.onMessage<PlayerJoinedMessage>("player_joined", (message) => {
         console.log("Player joined:", message);
       });
 
-      room.onMessage("player_left", (message) => {
+      room.onMessage<PlayerLeftMessage>("player_left", (message) => {
         console.log("Player left:", message);
       });
 
-      room.onMessage("chat", (message) => {
+      room.onMessage<ChatMessage>("chat", (message) => {
         console.log("Chat message:", message);
       });
 
@@ -155,9 +179,10 @@ export const useMultiplayerStore = create<MultiplayerStore>((set, get) => ({
       }, 1000);
 
       // Store interval for cleanup
-      (room as any)._pingInterval = pingInterval;
+      (room as Room<GameRoomState> & { _pingInterval?: NodeJS.Timeout })._pingInterval =
+        pingInterval;
 
-      console.log("✅ Connected to multiplayer room:", room.id);
+      console.log("✅ Connected to multiplayer room:", room.roomId);
     } catch (error) {
       console.error("❌ Failed to connect:", error);
       set({
@@ -172,10 +197,14 @@ export const useMultiplayerStore = create<MultiplayerStore>((set, get) => ({
     
     if (state.room) {
       // Clear ping interval
-      if ((state.room as any)._pingInterval) {
-        clearInterval((state.room as any)._pingInterval);
+      const activeRoom = state.room as Room<GameRoomState> & {
+        _pingInterval?: NodeJS.Timeout;
+      };
+
+      if (activeRoom._pingInterval) {
+        clearInterval(activeRoom._pingInterval);
       }
-      
+       
       await state.room.leave();
       set({
         room: null,
@@ -240,5 +269,17 @@ export const useMultiplayerStore = create<MultiplayerStore>((set, get) => ({
       lastPing: now,
       connectionQuality: quality 
     });
+  },
+
+  fetchRooms: async (roomName = "game_room") => {
+    set({ isFetchingRooms: true });
+
+    try {
+      const rooms = await colyseusClient.getAvailableRooms(roomName);
+      set({ availableRooms: rooms, isFetchingRooms: false });
+    } catch (error) {
+      console.error("❌ Failed to fetch available rooms:", error);
+      set({ availableRooms: [], isFetchingRooms: false });
+    }
   },
 }));

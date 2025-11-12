@@ -10,64 +10,42 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { useEffect, useState } from "react";
-
-interface RoomInfo {
-  roomId: string;
-  name: string;
-  clients: number;
-  maxClients: number;
-  metadata?: {
-    mapName?: string;
-    isPrivate?: boolean;
-    createdAt?: number;
-  };
-}
+import { useCallback, useEffect, useState } from "react";
 
 /**
  * Lobby UI Component
  * Shows available rooms and allows creating/joining rooms
  */
 export function LobbyUI() {
-  const { isConnected, connect, disconnect } = useMultiplayerStore();
-  const [rooms, setRooms] = useState<RoomInfo[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const {
+    isConnected,
+    connect,
+    fetchRooms,
+    availableRooms,
+    isFetchingRooms,
+  } = useMultiplayerStore();
   const [showCreateRoom, setShowCreateRoom] = useState(false);
   const [username, setUsername] = useState("");
   const [roomName, setRoomName] = useState("");
   const [maxPlayers, setMaxPlayers] = useState(10);
   const [isPrivate, setIsPrivate] = useState(false);
 
-  // Fetch available rooms
-  const fetchRooms = async () => {
-    setIsLoading(true);
+  const handleRefreshRooms = useCallback(async () => {
     try {
-      const colyseusHost = process.env.NEXT_PUBLIC_COLYSEUS_HOST || "localhost";
-      const colyseusPort = process.env.NEXT_PUBLIC_COLYSEUS_PORT || "2567";
-      const protocol =
-        process.env.NEXT_PUBLIC_COLYSEUS_SECURE === "true" ? "https" : "http";
-
-      const response = await fetch(
-        `${protocol}://${colyseusHost}:${colyseusPort}/matchmake/game_room`
-      );
-      const data = await response.json();
-      setRooms(data);
+      await fetchRooms();
     } catch (error) {
-      console.error("Failed to fetch rooms:", error);
-      setRooms([]);
-    } finally {
-      setIsLoading(false);
+      console.error("Failed to refresh rooms:", error);
     }
-  };
+  }, [fetchRooms]);
 
   // Auto-refresh rooms every 5 seconds
   useEffect(() => {
     if (!isConnected) {
-      fetchRooms();
-      const interval = setInterval(fetchRooms, 5000);
+      handleRefreshRooms();
+      const interval = setInterval(handleRefreshRooms, 5000);
       return () => clearInterval(interval);
     }
-  }, [isConnected]);
+  }, [isConnected, handleRefreshRooms]);
 
   const handleCreateRoom = async () => {
     if (!username.trim() || !roomName.trim()) {
@@ -259,17 +237,19 @@ export function LobbyUI() {
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
                   <Users className="w-5 h-5" />
-                  ห้องที่เปิดอยู่ ({rooms.length})
+                  ห้องที่เปิดอยู่ ({availableRooms.length})
                 </h2>
                 <button
-                  onClick={fetchRooms}
-                  disabled={isLoading}
+                  onClick={() => {
+                    void handleRefreshRooms();
+                  }}
+                  disabled={isFetchingRooms}
                   className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                   title="รีเฟรช"
                 >
                   <RefreshCw
                     className={`w-5 h-5 text-gray-600 dark:text-gray-400 ${
-                      isLoading ? "animate-spin" : ""
+                      isFetchingRooms ? "animate-spin" : ""
                     }`}
                   />
                 </button>
@@ -277,18 +257,24 @@ export function LobbyUI() {
 
               {/* Room List */}
               <div className="space-y-2 max-h-96 overflow-y-auto">
-                {isLoading ? (
+                {isFetchingRooms ? (
                   <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                     กำลังโหลด...
                   </div>
-                ) : rooms.length === 0 ? (
+                ) : availableRooms.length === 0 ? (
                   <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                     ไม่มีห้องที่เปิดอยู่
                   </div>
                 ) : (
-                  rooms.map((room) => {
+                  availableRooms.map((room) => {
                     const isFull = room.clients >= room.maxClients;
-                    const isPrivateRoom = room.metadata?.isPrivate;
+                    const metadata = room.metadata as
+                      | (Record<string, unknown> & {
+                          isPrivate?: boolean;
+                          mapName?: string;
+                        })
+                      | undefined;
+                    const isPrivateRoom = metadata?.isPrivate;
 
                     return (
                       <div
@@ -303,7 +289,7 @@ export function LobbyUI() {
                           )}
                           <div>
                             <div className="font-medium text-gray-900 dark:text-gray-100">
-                              {room.metadata?.mapName ||
+                              {metadata?.mapName ||
                                 room.name ||
                                 "Game Room"}
                             </div>
