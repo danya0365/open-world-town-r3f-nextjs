@@ -11,7 +11,7 @@ export class ColyseusClient {
   private constructor() {
     const protocol = COLYSEUS_SECURE ? "wss" : "ws";
     const endpoint = `${protocol}://${COLYSEUS_HOST}:${COLYSEUS_PORT}`;
-    
+
     console.log(`🎮 Initializing Colyseus client: ${endpoint}`);
     this.client = new Client(endpoint);
   }
@@ -34,10 +34,10 @@ export class ColyseusClient {
     }
   }
 
-  async joinRoom(roomId: string, options: any = {}): Promise<Room> {
+  async joinRoomById(roomId: string, options: any = {}): Promise<Room> {
     try {
       const room = await this.client.joinById(roomId, options);
-      console.log("✅ Successfully joined room by ID:", room.id);
+      console.log("✅ Successfully joined room:", room.id);
       return room;
     } catch (error) {
       console.error("❌ Failed to join room by ID:", error);

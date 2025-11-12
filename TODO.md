@@ -123,9 +123,13 @@
 - [x] Create Player List Panel (PlayerListPanel.tsx)
 - [x] Add basic player animations (color transition + head bobbing)
 - [x] Add simple collision detection (world boundaries)
+- [x] Fix DebugPanel bug (useFrame outside Canvas)
+- [x] Create Lobby/Room Selection UI (LobbyUI.tsx)
+- [x] Add create/join room functionality
+- [x] Add room list with auto-refresh
 - [ ] Implement lag compensation
-- [ ] Add lobby/room selection UI
 - [ ] Add player-to-player collision detection
+- [ ] Add room metadata and filtering
 
 ### 3.3 PeerJS Integration
 - [ ] Setup PeerJS for WebRTC

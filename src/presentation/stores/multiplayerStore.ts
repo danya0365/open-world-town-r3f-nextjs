@@ -24,7 +24,13 @@ interface MultiplayerState {
 }
 
 interface MultiplayerActions {
-  connect: (username: string) => Promise<void>;
+  connect: (username: string, options?: {
+    create?: boolean;
+    roomId?: string;
+    roomName?: string;
+    maxClients?: number;
+    isPrivate?: boolean;
+  }) => Promise<void>;
   disconnect: () => Promise<void>;
   sendMove: (position: [number, number, number], rotation: number, isMoving: boolean) => void;
   sendChat: (message: string) => void;
@@ -49,7 +55,13 @@ export const useMultiplayerStore = create<MultiplayerStore>((set, get) => ({
   connectionQuality: "disconnected",
 
   // Actions
-  connect: async (username: string) => {
+  connect: async (username: string, options?: {
+    create?: boolean;
+    roomId?: string;
+    roomName?: string;
+    maxClients?: number;
+    isPrivate?: boolean;
+  }) => {
     const state = get();
     
     if (state.isConnected || state.isConnecting) {
@@ -60,10 +72,27 @@ export const useMultiplayerStore = create<MultiplayerStore>((set, get) => ({
     set({ isConnecting: true, error: null });
 
     try {
-      // Join or create a game room
-      const room = await colyseusClient.joinOrCreateRoom("game_room", {
-        username,
-      });
+      console.log("🎮 Connecting to multiplayer server...");
+
+      let room;
+
+      // Join specific room by ID
+      if (options?.roomId) {
+        room = await colyseusClient.joinRoomById(options.roomId, { username });
+      }
+      // Create new room
+      else if (options?.create) {
+        room = await colyseusClient.createRoom("game_room", {
+          username,
+          roomName: options.roomName,
+          maxClients: options.maxClients,
+          isPrivate: options.isPrivate,
+        });
+      }
+      // Quick join (join or create)
+      else {
+        room = await colyseusClient.joinOrCreateRoom("game_room", { username });
+      }
 
       // Setup room event handlers
       room.onStateChange((state) => {

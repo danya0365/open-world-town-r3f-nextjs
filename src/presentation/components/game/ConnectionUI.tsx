@@ -31,7 +31,7 @@ export function ConnectionUI() {
     }
 
     setSavedUsername(username); // Save for reconnection
-    await connect(username);
+    await connect(username, {}); // Empty options for backward compatibility
     setShowUsernameInput(false);
   };
 
@@ -40,7 +40,7 @@ export function ConnectionUI() {
     
     setIsReconnecting(true);
     try {
-      await connect(savedUsername);
+      await connect(savedUsername, {});
     } finally {
       setIsReconnecting(false);
     }

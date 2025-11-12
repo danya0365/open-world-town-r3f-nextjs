@@ -8,6 +8,8 @@ import { ConnectionUI } from "./ConnectionUI";
 import { ChatUI } from "./ChatUI";
 import { ConnectionQualityIndicator } from "./ConnectionQualityIndicator";
 import { PlayerListPanel } from "./PlayerListPanel";
+import { LobbyUI } from "./LobbyUI";
+import { useMultiplayerStore } from "@/src/presentation/stores/multiplayerStore";
 
 /**
  * Game View Component
@@ -15,9 +17,13 @@ import { PlayerListPanel } from "./PlayerListPanel";
  */
 export function GameView() {
   const [showDebug, setShowDebug] = useState(false);
+  const isConnected = useMultiplayerStore((state) => state.isConnected);
 
   return (
     <div className="relative w-full h-screen overflow-hidden">
+      {/* Lobby UI - Show when not connected */}
+      {!isConnected && <LobbyUI />}
+
       {/* Game Canvas */}
       <GameCanvas />
 
