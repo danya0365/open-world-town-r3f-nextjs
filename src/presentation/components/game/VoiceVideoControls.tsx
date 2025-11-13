@@ -22,6 +22,8 @@ export function VoiceVideoControls() {
     toggleSpatialAudio,
     startLocalStream,
     stopLocalStream,
+    qualityMode,
+    setQualityMode,
   } = useVoiceVideoStore();
 
   const isConnected = useMultiplayerStore((state) => state.isConnected);
@@ -51,6 +53,14 @@ export function VoiceVideoControls() {
       // Start stream with video
       await startLocalStream(true, isAudioEnabled);
     }
+  };
+
+  const handleQualityChange = async (mode: "high" | "low") => {
+    if (mode === qualityMode) {
+      return;
+    }
+
+    setQualityMode(mode);
   };
 
   return (
@@ -132,6 +142,35 @@ export function VoiceVideoControls() {
             {activeCalls.size} {activeCalls.size === 1 ? "คน" : "คน"}
           </div>
         )}
+
+        {/* Quality Mode Selector */}
+        <div className="ml-4 flex items-center gap-2">
+          <span className="text-xs text-white/70">โหมดคุณภาพ</span>
+          <div className="flex rounded-full overflow-hidden border border-white/20">
+            <button
+              type="button"
+              onClick={() => handleQualityChange("high")}
+              className={`px-3 py-1 text-xs font-medium transition-colors ${
+                qualityMode === "high"
+                  ? "bg-blue-600 text-white"
+                  : "bg-transparent text-white/70 hover:bg-white/10"
+              }`}
+            >
+              สูง
+            </button>
+            <button
+              type="button"
+              onClick={() => handleQualityChange("low")}
+              className={`px-3 py-1 text-xs font-medium transition-colors ${
+                qualityMode === "low"
+                  ? "bg-blue-600 text-white"
+                  : "bg-transparent text-white/70 hover:bg-white/10"
+              }`}
+            >
+              ต่ำ
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

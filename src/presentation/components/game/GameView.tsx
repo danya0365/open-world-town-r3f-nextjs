@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ControlsInfo } from "./Controls";
 import { DebugPanel } from "./DebugPanel";
+import { VoiceVideoTelemetryPanel } from "./VoiceVideoTelemetryPanel";
 import { GameCanvas } from "./GameCanvas";
 import { ConnectionUI } from "./ConnectionUI";
 import { ChatUI } from "./ChatUI";
@@ -14,6 +15,7 @@ import { VoiceVideoControls } from "./VoiceVideoControls";
 import { VideoGrid } from "./VideoGrid";
 import { VoiceVideoSync } from "./VoiceVideoSync";
 import { SpatialAudioManager } from "./SpatialAudioManager";
+import { NotificationCenter } from "../feedback/NotificationCenter";
 import { useMultiplayerStore } from "@/src/presentation/stores/multiplayerStore";
 
 /**
@@ -51,10 +53,18 @@ export function GameView() {
       <VideoGrid />
 
       {/* Debug Panel */}
-      {showDebug && <DebugPanel />}
+      {showDebug && (
+        <>
+          <DebugPanel />
+          <VoiceVideoTelemetryPanel />
+        </>
+      )}
 
       {/* Controls Info */}
       <ControlsInfo />
+
+      {/* Global Notifications */}
+      <NotificationCenter />
 
       {/* Top UI Bar */}
       <div className="absolute top-4 left-4 flex items-center gap-2 z-10">

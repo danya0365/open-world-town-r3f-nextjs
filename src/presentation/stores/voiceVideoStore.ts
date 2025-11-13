@@ -1,6 +1,139 @@
 import { create } from "zustand";
 import type { MediaConnection } from "peerjs";
 import { peerClient } from "@/src/infrastructure/webrtc/PeerClient";
+import {
+  useNotificationStore,
+  type NotificationVariant,
+} from "@/src/presentation/stores/notificationStore";
+import {
+  voiceVideoTelemetry,
+  type VoiceVideoQualityLevel,
+} from "@/src/infrastructure/telemetry/voiceVideoTelemetry";
+import { initializeVoiceVideoAnalytics } from "@/src/infrastructure/analytics/voiceVideoAnalyticsClient";
+import { ensureVoiceVideoTelemetrySubscription } from "@/src/presentation/stores/voiceVideoTelemetryStore";
+
+type QualityMode = "high" | "low";
+
+const HIGH_QUALITY_VIDEO_CONSTRAINTS: MediaTrackConstraints = {
+  width: { ideal: 1280, max: 1920 },
+  height: { ideal: 720, max: 1080 },
+  frameRate: { ideal: 30, max: 60 },
+  aspectRatio: { ideal: 16 / 9 },
+  facingMode: "user",
+};
+
+const HIGH_QUALITY_AUDIO_CONSTRAINTS: MediaTrackConstraints = {
+  sampleRate: 48000,
+  channelCount: 2,
+  sampleSize: 16,
+  echoCancellation: { ideal: true },
+  noiseSuppression: { ideal: true },
+  autoGainControl: { ideal: true },
+};
+
+const LOW_QUALITY_VIDEO_CONSTRAINTS: MediaTrackConstraints = {
+  width: { ideal: 640, max: 1280 },
+  height: { ideal: 360, max: 720 },
+  frameRate: { ideal: 24, max: 30 },
+  aspectRatio: { ideal: 16 / 9 },
+  facingMode: "user",
+};
+
+const LOW_QUALITY_AUDIO_CONSTRAINTS: MediaTrackConstraints = {
+  sampleRate: 24000,
+  channelCount: 1,
+  echoCancellation: { ideal: true },
+  noiseSuppression: { ideal: true },
+  autoGainControl: { ideal: true },
+};
+
+const pushNotification = (
+  message: string,
+  variant: NotificationVariant = "info"
+) => {
+  useNotificationStore.getState().addNotification(message, variant);
+};
+
+const serializeError = (error: unknown) =>
+  error instanceof Error
+    ? { name: error.name, message: error.message }
+    : error ?? "Unknown error";
+
+initializeVoiceVideoAnalytics();
+ensureVoiceVideoTelemetrySubscription();
+
+interface MediaAttempt {
+  quality: VoiceVideoQualityLevel;
+  videoConstraints: MediaTrackConstraints | boolean;
+  audioConstraints: MediaTrackConstraints | boolean;
+  warning?: string;
+}
+
+const enhanceTrackQuality = async (
+  stream: MediaStream,
+  options: { video: boolean; audio: boolean }
+) => {
+  const enhancementPromises: Promise<void>[] = [];
+
+  if (options.video) {
+    const [videoTrack] = stream.getVideoTracks();
+
+    if (videoTrack) {
+      enhancementPromises.push(
+        videoTrack
+          .applyConstraints({
+            width: { ideal: 1280, max: 1920 },
+            height: { ideal: 720, max: 1080 },
+            frameRate: { ideal: 30, max: 60 },
+          })
+          .catch((error) => {
+            console.warn("⚠️ Unable to apply high-quality video constraints:", error);
+          })
+      );
+
+      if ("contentHint" in videoTrack) {
+        try {
+          videoTrack.contentHint = "detail";
+        } catch (error) {
+          console.warn("⚠️ Unable to set video contentHint:", error);
+        }
+      }
+    }
+  }
+
+  if (options.audio) {
+    const [audioTrack] = stream.getAudioTracks();
+
+    if (audioTrack) {
+      enhancementPromises.push(
+        audioTrack
+          .applyConstraints({
+            sampleRate: 48000,
+            channelCount: 2,
+            sampleSize: 16,
+            noiseSuppression: { ideal: true },
+            echoCancellation: { ideal: true },
+            autoGainControl: { ideal: true },
+          })
+          .catch((error) => {
+            console.warn("⚠️ Unable to apply high-quality audio constraints:", error);
+          })
+      );
+
+      if ("contentHint" in audioTrack) {
+        try {
+          audioTrack.contentHint = "speech";
+        } catch (error) {
+          console.warn("⚠️ Unable to set audio contentHint:", error);
+        }
+      }
+    }
+  }
+
+  if (enhancementPromises.length > 0) {
+    await Promise.all(enhancementPromises);
+  }
+};
 
 interface PeerConnection {
   peerId: string;
@@ -23,6 +156,7 @@ interface VoiceVideoStore {
   activeCalls: Map<string, PeerConnection>;
   spatialAudioEnabled: boolean;
   maxAudioDistance: number; // Max distance to hear other players
+  qualityMode: QualityMode;
   
   // Actions
   initialize: (userId: string) => Promise<void>;
@@ -37,6 +171,7 @@ interface VoiceVideoStore {
   toggleSpatialAudio: () => void;
   updatePeerDistance: (peerId: string, distance: number) => void;
   setMaxAudioDistance: (distance: number) => void;
+  setQualityMode: (mode: QualityMode) => void;
 }
 
 /**
@@ -55,6 +190,7 @@ export const useVoiceVideoStore = create<VoiceVideoStore>((set, get) => ({
   activeCalls: new Map(),
   spatialAudioEnabled: true,
   maxAudioDistance: 15, // Units in game world
+  qualityMode: "high",
 
   // Initialize PeerJS
   initialize: async (userId: string) => {
@@ -105,32 +241,171 @@ export const useVoiceVideoStore = create<VoiceVideoStore>((set, get) => ({
 
   // Start local media stream
   startLocalStream: async (video: boolean, audio: boolean) => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: video ? { width: 640, height: 480 } : false,
-        audio: audio
-          ? {
-              echoCancellation: true,
-              noiseSuppression: true,
-              autoGainControl: true,
-            }
-          : false,
+    const state = get();
+    const warnings: string[] = [];
+    const requested = { video, audio };
+
+    const addWarning = (message: string) => {
+      if (!warnings.includes(message)) {
+        warnings.push(message);
+      }
+    };
+
+    if (state.localStream) {
+      state.localStream.getTracks().forEach((track) => track.stop());
+    }
+
+    const requestStream = async (
+      videoConstraints: MediaTrackConstraints | boolean,
+      audioConstraints: MediaTrackConstraints | boolean
+    ) =>
+      navigator.mediaDevices.getUserMedia({
+        video: videoConstraints,
+        audio: audioConstraints,
       });
+
+    const attempts: MediaAttempt[] = [];
+
+    if (video || audio) {
+      if (state.qualityMode === "high") {
+        attempts.push({
+          quality: "high",
+          videoConstraints: video ? HIGH_QUALITY_VIDEO_CONSTRAINTS : false,
+          audioConstraints: audio ? HIGH_QUALITY_AUDIO_CONSTRAINTS : false,
+        });
+      }
+
+      const lowWarning = state.qualityMode === "high"
+        ? video && audio
+          ? "ไม่สามารถเปิดกล้องและไมค์คุณภาพสูงได้ ระบบจะลดคุณภาพเพื่อรักษาประสิทธิภาพเกม"
+          : video
+            ? "ไม่สามารถเปิดกล้องคุณภาพสูงได้ ระบบจะลดคุณภาพวิดีโอเพื่อรักษาประสิทธิภาพเกม"
+            : audio
+              ? "ไม่สามารถเปิดไมค์คุณภาพสูงได้ ระบบจะลดคุณภาพเสียงเพื่อรักษาประสิทธิภาพเกม"
+              : undefined
+        : undefined;
+
+      attempts.push({
+        quality: "low",
+        videoConstraints: video ? LOW_QUALITY_VIDEO_CONSTRAINTS : false,
+        audioConstraints: audio ? LOW_QUALITY_AUDIO_CONSTRAINTS : false,
+        warning: lowWarning,
+      });
+    }
+
+    if (video && audio) {
+      attempts.push({
+        quality: "audio-only",
+        videoConstraints: false,
+        audioConstraints: LOW_QUALITY_AUDIO_CONSTRAINTS,
+        warning: "ไม่สามารถเปิดกล้องได้ ระบบจะใช้เฉพาะเสียง",
+      });
+
+      attempts.push({
+        quality: "video-only",
+        videoConstraints: LOW_QUALITY_VIDEO_CONSTRAINTS,
+        audioConstraints: false,
+        warning: "ไม่สามารถเปิดไมค์ได้ ระบบจะเปิดเฉพาะวิดีโอ",
+      });
+    }
+
+    let stream: MediaStream | null = null;
+    let appliedQuality: VoiceVideoQualityLevel | null = null;
+
+    for (const attempt of attempts) {
+      voiceVideoTelemetry.log({
+        type: "media_request_attempt",
+        quality: attempt.quality,
+        requested,
+        timestamp: new Date().toISOString(),
+      });
+
+      try {
+        const result = await requestStream(
+          attempt.videoConstraints,
+          attempt.audioConstraints
+        );
+
+        stream = result;
+        appliedQuality = attempt.quality;
+
+        voiceVideoTelemetry.log({
+          type: "media_request_success",
+          quality: attempt.quality,
+          tracks: {
+            audio: result.getAudioTracks().length,
+            video: result.getVideoTracks().length,
+          },
+          timestamp: new Date().toISOString(),
+        });
+
+        if (attempt.warning) {
+          addWarning(attempt.warning);
+        }
+
+        break;
+      } catch (error) {
+        voiceVideoTelemetry.log({
+          type: "media_request_failure",
+          quality: attempt.quality,
+          error: serializeError(error),
+          timestamp: new Date().toISOString(),
+        });
+
+        console.warn("⚠️ Media attempt failed:", attempt.quality, error);
+      }
+    }
+
+    if (!stream) {
+      voiceVideoTelemetry.log({
+        type: "media_request_exhausted",
+        requested,
+        timestamp: new Date().toISOString(),
+      });
+
+      pushNotification(
+        "ไม่สามารถเปิดเสียงหรือวิดีโอได้ กรุณาตรวจสอบอุปกรณ์ สิทธิ์การเข้าถึง และลองใหม่อีกครั้ง",
+        "error"
+      );
 
       set({
-        localStream: stream,
-        isAudioEnabled: audio,
-        isVideoEnabled: video,
-        isMuted: !audio,
-        isCameraOn: video,
+        localStream: null,
+        isAudioEnabled: false,
+        isVideoEnabled: false,
+        isMuted: true,
+        isCameraOn: false,
       });
 
-      console.log("✅ Local stream started");
-      return stream;
-    } catch (error) {
-      console.error("❌ Failed to get user media:", error);
       return null;
     }
+
+    const hasAudio = stream.getAudioTracks().length > 0;
+    const hasVideo = stream.getVideoTracks().length > 0;
+
+    if (video && !hasVideo) {
+      addWarning("ไม่สามารถเปิดกล้องได้ ระบบจะปิดวิดีโอเพื่อรักษาประสิทธิภาพเกม");
+    }
+
+    if (audio && !hasAudio) {
+      addWarning("ไม่สามารถเปิดไมค์ได้ ระบบจะปิดเสียงเพื่อรักษาประสิทธิภาพเกม");
+    }
+
+    if (appliedQuality === "high") {
+      await enhanceTrackQuality(stream, { video: hasVideo, audio: hasAudio });
+    }
+
+    set({
+      localStream: stream,
+      isAudioEnabled: hasAudio,
+      isVideoEnabled: hasVideo,
+      isMuted: !hasAudio,
+      isCameraOn: hasVideo,
+    });
+
+    warnings.forEach((message) => pushNotification(message, "warning"));
+
+    console.log("✅ Local stream started");
+    return stream;
   },
 
   // Stop local stream
@@ -341,5 +616,44 @@ export const useVoiceVideoStore = create<VoiceVideoStore>((set, get) => ({
   // Set max audio distance
   setMaxAudioDistance: (distance: number) => {
     set({ maxAudioDistance: distance });
+  },
+
+  setQualityMode: (mode: QualityMode) => {
+    const state = get();
+
+    if (state.qualityMode === mode) {
+      return;
+    }
+
+    const hadStream = Boolean(state.localStream);
+    const prevVideoEnabled = state.isVideoEnabled;
+    const prevAudioEnabled = state.isAudioEnabled;
+
+    set({ qualityMode: mode });
+
+    voiceVideoTelemetry.log({
+      type: "quality_mode_changed",
+      mode,
+      timestamp: new Date().toISOString(),
+    });
+
+    pushNotification(
+      mode === "high"
+        ? "ตั้งค่าโหมดคุณภาพเป็น สูง (ภาพและเสียงจะคมชัดมากขึ้น)"
+        : "ตั้งค่าโหมดคุณภาพเป็น ต่ำ (ช่วยประหยัดแบนด์วิดท์และรักษาเฟรมเรตเกม)",
+      "info"
+    );
+
+    if (hadStream) {
+      void get()
+        .startLocalStream(prevVideoEnabled, prevAudioEnabled)
+        .catch((error) => {
+          console.error("❌ Failed to restart stream after quality change:", error);
+          pushNotification(
+            "ไม่สามารถรีสตาร์ทสตรีมหลังเปลี่ยนโหมดคุณภาพได้",
+            "error"
+          );
+        });
+    }
   },
 }));
