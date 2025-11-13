@@ -142,6 +142,9 @@ export const useMultiplayerStore = create<MultiplayerStore>((set, get) => {
           additionalOptions,
         } = options ?? {};
 
+        const desiredGameMode = additionalOptions?.mode as GameMode | undefined;
+        const desiredMapName = additionalOptions?.mapName as MapName | undefined;
+
         const joinOptions: RoomJoinOptions = {
           username,
           ...(roomName ? { roomName } : {}),
@@ -163,6 +166,12 @@ export const useMultiplayerStore = create<MultiplayerStore>((set, get) => {
           );
         }
 
+        if (shouldCreate && desiredGameMode && desiredMapName) {
+          useGameStore.getState().setGameSettings(desiredGameMode, desiredMapName);
+        } else if (shouldCreate && desiredMapName) {
+          useGameStore.getState().setMapName(desiredMapName);
+        }
+
         // Set game settings from room metadata
         const roomWithMetadata = room as Room<GameRoomState> & {
           metadata?: Record<string, unknown>;
@@ -178,6 +187,10 @@ export const useMultiplayerStore = create<MultiplayerStore>((set, get) => {
 
           if (gameMode && mapName) {
             useGameStore.getState().setGameSettings(gameMode, mapName);
+          } else if (mapName) {
+            useGameStore.getState().setMapName(mapName);
+          } else if (shouldCreate && desiredMapName) {
+            useGameStore.getState().setMapName(desiredMapName);
           }
         }
 
