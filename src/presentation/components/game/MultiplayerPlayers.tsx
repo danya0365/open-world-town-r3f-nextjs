@@ -1,10 +1,12 @@
 "use client";
 
 import { useMultiplayerStore } from "@/src/presentation/stores/multiplayerStore";
+import { useTableStore } from "@/src/presentation/stores/tableStore";
+import { useEffect } from "react";
 import { Billboard, Text } from "@react-three/drei";
 import { useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
-import type { Group } from "three";
+import type { Group, Mesh } from "three";
 
 /**
  * Linear interpolation helper
@@ -52,7 +54,7 @@ function MultiplayerPlayer({
   isMoving: boolean;
 }) {
   const groupRef = useRef<Group>(null);
-  const headRef = useRef<any>(null);
+  const headRef = useRef<Mesh>(null);
   
   // Current interpolated position
   const currentPos = useRef({ x, y, z, rotation });
@@ -163,6 +165,7 @@ function MultiplayerPlayer({
  */
 export function MultiplayerPlayers() {
   const { players, myPlayerId, isConnected } = useMultiplayerStore();
+  const setFocusedSeat = useTableStore((state) => state.setFocusedSeat);
 
   // Filter out own player and convert to array
   const otherPlayers = useMemo(() => {
@@ -180,6 +183,12 @@ export function MultiplayerPlayers() {
         isMoving: player.isMoving,
       }));
   }, [players, myPlayerId, isConnected]);
+
+  useEffect(() => {
+    if (!isConnected) {
+      setFocusedSeat(null);
+    }
+  }, [isConnected, setFocusedSeat]);
 
   if (!isConnected || otherPlayers.length === 0) {
     return null;

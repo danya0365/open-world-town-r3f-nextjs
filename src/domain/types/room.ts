@@ -5,7 +5,13 @@
 
 export type GameMode = "deathmatch" | "team_deathmatch" | "capture_flag" | "free_roam" | "custom";
 
-export type MapName = "town_square" | "forest" | "desert" | "snow_land" | "custom";
+export type MapName =
+  | "town_square"
+  | "forest"
+  | "desert"
+  | "snow_land"
+  | "caribbean_poker"
+  | "custom";
 
 export interface RoomMetadata {
   roomName: string;
@@ -85,6 +91,11 @@ export const MAP_NAMES: Record<MapName, { label: string; description: string; ic
     label: "Snow Land",
     description: "Frozen tundra",
     icon: "❄️",
+  },
+  caribbean_poker: {
+    label: "Caribbean Poker",
+    description: "โต๊ะเกมคาริบเบียนโปกเกอร์",
+    icon: "🃏",
   },
   custom: {
     label: "Custom",

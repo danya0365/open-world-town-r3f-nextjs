@@ -1,12 +1,73 @@
 "use client";
 
-import { Box, Cylinder, Sphere } from "@react-three/drei";
+import { Box, Cylinder, Sphere, Text } from "@react-three/drei";
+import { usePlayerStore } from "@/src/presentation/stores/playerStore";
+import { useTableStore } from "@/src/presentation/stores/tableStore";
+import { useMultiplayerStore } from "@/src/presentation/stores/multiplayerStore";
+import { useEffect, useMemo } from "react";
+import { useFrame } from "@react-three/fiber";
+import { Vector3 } from "three";
 
 /**
  * Town Square Map
  * A bustling town center with buildings and decorations
  */
 export function TownSquareMap() {
+  const playerPosition = usePlayerStore((state) => state.position);
+  const seats = useTableStore((state) => state.seats);
+  const leaveSeat = useTableStore((state) => state.leaveSeat);
+  const setFocusedSeat = useTableStore((state) => state.setFocusedSeat);
+  const focusedSeatIndex = useTableStore((state) => state.focusedSeatIndex);
+  const myPlayerId = useMultiplayerStore((state) => state.myPlayerId);
+  const players = useMultiplayerStore((state) => state.players);
+
+  const tablePosition = useMemo(() => new Vector3(-2, 0, 2), []);
+  const seatOffsets = useMemo<readonly Vector3[]>(
+    () => [
+      new Vector3(-1.2, 0, 0),
+      new Vector3(-0.4, 0, 1.1),
+      new Vector3(0.8, 0, 1.1),
+      new Vector3(1.6, 0, 0),
+      new Vector3(0.2, 0, -1.2),
+    ],
+    []
+  );
+
+  useFrame(() => {
+    const playerVec = new Vector3(playerPosition[0], playerPosition[1], playerPosition[2]);
+    const interactionRadius = 0.85;
+    let nearestIndex: number | null = null;
+    let nearestDistance = interactionRadius;
+
+    seatOffsets.forEach((offset, index) => {
+      const seatPosition = tablePosition.clone().add(offset);
+      const distance = seatPosition.distanceTo(playerVec);
+
+      if (distance < nearestDistance) {
+        nearestDistance = distance;
+        nearestIndex = index;
+      }
+    });
+
+    const currentFocus = useTableStore.getState().focusedSeatIndex;
+    if (nearestIndex !== currentFocus) {
+      setFocusedSeat(nearestIndex);
+    }
+  });
+
+  useEffect(() => {
+    return () => {
+      setFocusedSeat(null);
+    };
+  });
+
+  useEffect(() => {
+    // ออกจากที่นั่งเมื่อผู้เล่นไม่มี session แล้ว (เช่น disconnect)
+    if (!myPlayerId) {
+      leaveSeat();
+    }
+  }, [myPlayerId, leaveSeat]);
+
   return (
     <group>
       {/* Ground */}
@@ -113,6 +174,74 @@ export function TownSquareMap() {
           </Sphere>
         </group>
       ))}
+
+      {/* Caribbean Poker Table */}
+      <group position={tablePosition.toArray() as [number, number, number]}>
+        {/* โต๊ะหลัก */}
+        <Cylinder args={[2.5, 2.5, 0.3, 32]} position={[0, 0.3, 0]} rotation={[Math.PI / 2, 0, 0]} castShadow>
+          <meshStandardMaterial color="#1F2937" />
+        </Cylinder>
+        <Cylinder args={[2.7, 2.7, 0.1, 32]} position={[0, 0.25, 0]} rotation={[Math.PI / 2, 0, 0]} receiveShadow>
+          <meshStandardMaterial color="#10B981" />
+        </Cylinder>
+
+        {/* ป้ายชื่อโต๊ะ */}
+        <Text position={[0, 0.6, 0]} fontSize={0.4} color="#FBBF24" anchorX="center" anchorY="middle">
+          Caribbean Poker
+        </Text>
+
+        {/* พื้นที่รอบโต๊ะ */}
+        <Cylinder args={[3.2, 3.2, 0.05, 32]} position={[0, 0.05, 0]} rotation={[Math.PI / 2, 0, 0]} receiveShadow>
+          <meshStandardMaterial color="#374151" />
+        </Cylinder>
+
+        {/* ที่นั่ง */}
+        {seatOffsets.map((offset, index) => {
+          const seatPosition = offset.clone().setY(0.2);
+          const occupant = seats[index]?.playerId ?? null;
+          const isOccupied = Boolean(occupant);
+          const isFocused = index === focusedSeatIndex;
+          const occupantName =
+            occupant && players.get(occupant)
+              ? players.get(occupant)?.username
+              : undefined;
+          const seatLabel = `Seat ${index + 1}`;
+
+          return (
+            <group key={`seat-${index}`} position={seatPosition.toArray() as [number, number, number]}>
+              <Cylinder args={[0.4, 0.4, 0.2, 16]} rotation={[Math.PI / 2, 0, 0]} castShadow>
+                <meshStandardMaterial
+                  color={isOccupied ? "#EF4444" : "#38BDF8"}
+                  emissive={isFocused ? "#22D3EE" : "#000000"}
+                  emissiveIntensity={isFocused ? 0.4 : 0}
+                />
+              </Cylinder>
+              <Text
+                position={[0, 0.42, 0]}
+                fontSize={0.16}
+                color="#F8FAFC"
+                anchorX="center"
+                anchorY="middle"
+              >
+                {seatLabel}
+              </Text>
+              <Text
+                position={[0, 0.18, 0]}
+                fontSize={0.13}
+                color={isOccupied ? "#FCA5A5" : "#A5F3FC"}
+                anchorX="center"
+                anchorY="middle"
+              >
+                {isOccupied
+                  ? occupant === myPlayerId
+                    ? "คุณกำลังนั่ง"
+                    : occupantName ?? "มีผู้เล่น"
+                  : "ว่าง"}
+              </Text>
+            </group>
+          );
+        })}
+      </group>
     </group>
   );
 }

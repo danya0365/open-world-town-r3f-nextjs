@@ -5,6 +5,7 @@ import { TownSquareMap } from "./maps/TownSquareMap";
 import { ForestMap } from "./maps/ForestMap";
 import { DesertMap } from "./maps/DesertMap";
 import { SnowLandMap } from "./maps/SnowLandMap";
+import { CaribbeanPokerMap } from "./maps/CaribbeanPokerMap";
 import type { MapName } from "@/src/domain/types/room";
 
 /**
@@ -25,6 +26,8 @@ export function MapManager() {
         return <DesertMap />;
       case "snow_land":
         return <SnowLandMap />;
+      case "caribbean_poker":
+        return <CaribbeanPokerMap />;
       case "custom":
         // Default to town square for custom maps (can be extended later)
         return <TownSquareMap />;
@@ -49,6 +52,8 @@ export function getAmbientLightColor(mapName: MapName): string {
       return "#FFF4E6"; // Warm orange tint
     case "snow_land":
       return "#E0F2FE"; // Cool blue tint
+    case "caribbean_poker":
+      return "#FFF4DE"; // Soft warm for casino feel
     default:
       return "#FFFFFF";
   }
@@ -67,6 +72,8 @@ export function getDirectionalLightColor(mapName: MapName): string {
       return "#FFE4B5"; // Moccasin
     case "snow_land":
       return "#B0E0E6"; // Powder blue
+    case "caribbean_poker":
+      return "#FFD966"; // Warm spotlight
     default:
       return "#FFFFFF";
   }
@@ -85,6 +92,8 @@ export function getFogColor(mapName: MapName): string {
       return "#F4A460"; // Sandy brown
     case "snow_land":
       return "#F0F8FF"; // Alice blue
+    case "caribbean_poker":
+      return "#FFE9C4"; // Soft golden haze
     default:
       return "#FFFFFF";
   }

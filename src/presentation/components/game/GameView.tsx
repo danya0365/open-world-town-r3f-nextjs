@@ -17,6 +17,9 @@ import { VoiceVideoSync } from "./VoiceVideoSync";
 import { SpatialAudioManager } from "./SpatialAudioManager";
 import { NotificationCenter } from "../feedback/NotificationCenter";
 import { useMultiplayerStore } from "@/src/presentation/stores/multiplayerStore";
+import { TableInteractionHUD } from "./TableInteractionHUD";
+import { useGameStore } from "@/src/presentation/stores/gameStore";
+import { CaribbeanPokerHUD } from "./CaribbeanPokerHUD";
 
 /**
  * Game View Component
@@ -25,6 +28,7 @@ import { useMultiplayerStore } from "@/src/presentation/stores/multiplayerStore"
 export function GameView() {
   const [showDebug, setShowDebug] = useState(false);
   const isConnected = useMultiplayerStore((state) => state.isConnected);
+  const mapName = useGameStore((state) => state.mapName);
 
   return (
     <div className="relative w-full h-screen overflow-hidden">
@@ -45,6 +49,12 @@ export function GameView() {
 
       {/* Chat UI */}
       <ChatUI />
+
+      {/* Table Interaction HUD */}
+      {isConnected && <TableInteractionHUD />}
+
+      {/* Caribbean Poker Overlay */}
+      {isConnected && mapName === "caribbean_poker" && <CaribbeanPokerHUD />}
 
       {/* Voice/Video Components */}
       <VoiceVideoSync />

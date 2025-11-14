@@ -1,9 +1,7 @@
 import {
-  type ChatMessage,
   type GameRoomState,
-  type PlayerJoinedMessage,
-  type PlayerLeftMessage,
   type RoomJoinOptions,
+  type MultiplayerPlayerState,
 } from "@/src/domain/types/multiplayer";
 import type { GameMode, MapName } from "@/src/domain/types/room";
 import {
@@ -13,6 +11,9 @@ import {
 import type { Room } from "colyseus.js";
 import { create } from "zustand";
 import { useGameStore } from "./gameStore";
+import { useTableStore, type TableSnapshot } from "./tableStore";
+import { usePokerRoundStore, type PokerRoundServerPayload } from "./pokerRoundStore";
+import type { PokerActionType } from "./tableStore";
 
 interface PlayerData {
   id: string;
@@ -37,6 +38,20 @@ interface MultiplayerPlayer {
 
 interface MultiplayerNPC {
   id: string;
+  name: string;
+  type: string;
+  behavior: string;
+  x: number;
+  y: number;
+  z: number;
+  rotation: number;
+  speed: number;
+  health: number;
+  maxHealth: number;
+  isInteractable: boolean;
+}
+
+interface ServerNPCState {
   name: string;
   type: string;
   behavior: string;
@@ -90,6 +105,13 @@ interface MultiplayerActions {
 }
 
 type MultiplayerStore = MultiplayerState & MultiplayerActions;
+
+interface PokerActionAckPayload {
+  success: boolean;
+  action?: string;
+  amount?: number;
+  reason?: string;
+}
 
 /**
  * Multiplayer Store using Zustand
@@ -199,7 +221,7 @@ export const useMultiplayerStore = create<MultiplayerStore>((set, get) => {
           const newPlayers = new Map<string, MultiplayerPlayer>();
           const newNPCs = new Map<string, MultiplayerNPC>();
 
-          state.players.forEach((player, playerId) => {
+          state.players.forEach((player: MultiplayerPlayerState, playerId: string) => {
             newPlayers.set(playerId, {
               id: playerId,
               username: player.username,
@@ -213,38 +235,99 @@ export const useMultiplayerStore = create<MultiplayerStore>((set, get) => {
           });
 
           // Sync NPCs from server
-          if (state.npcs) {
-            state.npcs.forEach((npc: any, npcId: string) => {
-              newNPCs.set(npcId, {
-                id: npcId,
-                name: npc.name,
-                type: npc.type,
-                behavior: npc.behavior,
-                x: npc.x,
-                y: npc.y,
-                z: npc.z,
-                rotation: npc.rotation,
-                speed: npc.speed,
-                health: npc.health,
-                maxHealth: npc.maxHealth,
-                isInteractable: npc.isInteractable,
-              });
+          state.npcs?.forEach((npc: ServerNPCState, npcId: string) => {
+            newNPCs.set(npcId, {
+              id: npcId,
+              name: npc.name,
+              type: npc.type,
+              behavior: npc.behavior,
+              x: npc.x,
+              y: npc.y,
+              z: npc.z,
+              rotation: npc.rotation,
+              speed: npc.speed,
+              health: npc.health,
+              maxHealth: npc.maxHealth,
+              isInteractable: npc.isInteractable,
             });
-          }
+          });
 
           set({ players: newPlayers, npcs: newNPCs });
         });
 
-        room.onMessage<PlayerJoinedMessage>("player_joined", (message) => {
-          console.log("Player joined:", message);
+        const sendTableMessage = (type: string, payload?: unknown) => {
+          room.send(type, payload);
+        };
+
+        useTableStore
+          .getState()
+          .setNetworkContext({
+            myPlayerId: room.sessionId,
+            sendMessage: sendTableMessage,
+          });
+
+        room.send("table_sync_request");
+        room.send("poker_phase_request");
+
+        room.onMessage<TableSnapshot>("table_state_sync", (snapshot) => {
+          useTableStore.getState().hydrateFromServer(snapshot);
         });
 
-        room.onMessage<PlayerLeftMessage>("player_left", (message) => {
-          console.log("Player left:", message);
+        room.onMessage<TableSnapshot>("table_rollback", (snapshot) => {
+          useTableStore.getState().handleRollback(snapshot);
         });
 
-        room.onMessage<ChatMessage>("chat", (message) => {
-          console.log("Chat message:", message);
+        room.onMessage("table_started", () => {
+          useTableStore.getState().applyTableStart();
+        });
+
+        room.onMessage("table_start_denied", (payload: { reason?: string }) => {
+          console.warn("Table start denied", payload?.reason);
+        });
+
+        room.onMessage<PokerRoundServerPayload>("poker_state_update", (payload) => {
+          if (!payload) {
+            return;
+          }
+
+          const pokerStore = usePokerRoundStore.getState();
+          const safePhase = payload.phase ?? pokerStore.phase;
+          const safeDealerSeed =
+            typeof payload.dealerSeed === "number" && Number.isFinite(payload.dealerSeed)
+              ? payload.dealerSeed
+              : pokerStore.dealerSeed;
+
+          pokerStore.hydrateFromServer({
+            phase: safePhase,
+            dealerSeed: safeDealerSeed,
+            winningPlayerIds: payload.winningPlayerIds,
+            playerBets: payload.playerBets,
+            community: payload.community,
+            lastUpdateFrame: payload.lastUpdateFrame,
+            lastAction: payload.lastAction ?? null,
+            potTotal: payload.potTotal,
+            nextRoundStartAt: payload.nextRoundStartAt,
+          });
+        });
+
+        room.onMessage<PokerActionAckPayload>("poker_action_ack", (payload) => {
+          const pokerStore = usePokerRoundStore.getState();
+          if (!payload) {
+            pokerStore.setActionFeedback(null);
+            return;
+          }
+
+          const actionLabel = payload.action
+            ? (payload.action.toLowerCase() as PokerActionType)
+            : undefined;
+
+          const message = payload.success
+            ? actionLabel
+              ? `🎯 ส่งคำสั่ง ${actionLabel} แล้ว`
+              : "🎯 ส่งคำสั่งแล้ว"
+            : `⚠️ ${payload.reason ?? "ทำรายการไม่สำเร็จ"}`;
+
+          pokerStore.setActionFeedback(message);
         });
 
         room.onError((code, message) => {
@@ -254,6 +337,8 @@ export const useMultiplayerStore = create<MultiplayerStore>((set, get) => {
 
         room.onLeave(() => {
           console.log("👋 Left room");
+          useTableStore.getState().reset();
+          usePokerRoundStore.getState().resetRound();
           set({
             isConnected: false,
             room: null,
