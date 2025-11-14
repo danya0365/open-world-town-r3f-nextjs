@@ -2,6 +2,7 @@
 
 import { useFrame } from "@react-three/fiber";
 import { usePlayerStore } from "@/src/presentation/stores/playerStore";
+import { useCameraStore } from "@/src/presentation/stores/cameraStore";
 import { useMultiplayerStore } from "@/src/presentation/stores/multiplayerStore";
 import { useControls } from "./Controls";
 import { useRef, useMemo } from "react";
@@ -16,6 +17,7 @@ export function Player() {
   const meshRef = useRef<Mesh>(null);
   const headRef = useRef<Mesh>(null);
   const { position, rotation, isMoving, movePlayer } = usePlayerStore();
+  const cameraMode = useCameraStore((state) => state.mode);
   const { sendMove, isConnected } = useMultiplayerStore();
   const keys = useControls();
   
@@ -29,19 +31,32 @@ export function Player() {
   // Update player position based on input
   useFrame((_, delta) => {
     animTime.current += delta;
+    let forward = 0;
+    let strafe = 0;
+
+    if (keys.w || keys.ArrowUp) forward += 1;
+    if (keys.s || keys.ArrowDown) forward -= 1;
+    if (keys.d || keys.ArrowRight) strafe += 1;
+    if (keys.a || keys.ArrowLeft) strafe -= 1;
+
     let dx = 0;
     let dz = 0;
 
-    // Calculate movement direction
-    if (keys.w || keys.ArrowUp) dz -= 1;
-    if (keys.s || keys.ArrowDown) dz += 1;
-    if (keys.a || keys.ArrowLeft) dx -= 1;
-    if (keys.d || keys.ArrowRight) dx += 1;
+    if (cameraMode === "third-person") {
+      const sinYaw = Math.sin(rotation);
+      const cosYaw = Math.cos(rotation);
 
-    // Normalize diagonal movement
-    if (dx !== 0 && dz !== 0) {
-      dx *= 0.707; // 1/√2
-      dz *= 0.707;
+      dx = forward * sinYaw + strafe * cosYaw;
+      dz = forward * cosYaw - strafe * sinYaw;
+    } else {
+      dx = strafe;
+      dz = -forward;
+    }
+
+    const magnitude = Math.hypot(dx, dz);
+    if (magnitude > 1) {
+      dx /= magnitude;
+      dz /= magnitude;
     }
 
     // Move player

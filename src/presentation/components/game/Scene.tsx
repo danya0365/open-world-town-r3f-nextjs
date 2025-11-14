@@ -79,9 +79,7 @@ export function Scene() {
         const camZ = targetZ - Math.cos(playerRotation) * distance;
         const camY = height;
 
-        camera.position.x += (camX - camera.position.x) * smoothing;
-        camera.position.y += (camY - camera.position.y) * smoothing;
-        camera.position.z += (camZ - camera.position.z) * smoothing;
+        camera.position.set(camX, camY, camZ);
 
         // Look at a point slightly above the player
         camera.lookAt(targetX, 0.5, targetZ);
