@@ -64,9 +64,7 @@ export function Scene() {
         const camY = height;
         const camZ = targetZ + offsetZ;
 
-        camera.position.x += (camX - camera.position.x) * smoothing;
-        camera.position.y += (camY - camera.position.y) * smoothing;
-        camera.position.z += (camZ - camera.position.z) * smoothing;
+        camera.position.set(camX, camY, camZ);
         camera.lookAt(targetX, 0, targetZ);
         break;
       }
