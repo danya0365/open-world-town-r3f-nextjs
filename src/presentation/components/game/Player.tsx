@@ -20,6 +20,8 @@ export function Player() {
   const { sendMove, isConnected } = useMultiplayerStore();
   const cameraMode = useCameraStore((state) => state.mode);
   const dragonQuestAngle = useCameraStore((state) => state.dragonQuestAngle);
+  const thirdPersonAngle = useCameraStore((state) => state.thirdPersonAngle);
+  const rotateThirdPersonCamera = useCameraStore((state) => state.rotateThirdPersonCamera);
   const keys = useControls();
   
   // Animation state
@@ -35,8 +37,33 @@ export function Player() {
     let dx = 0;
     let dz = 0;
 
+    // Third-Person Mode: Camera-relative controls with smooth rotation
+    if (cameraMode === "third-person") {
+      // Arrow left/right: Rotate camera smoothly
+      const rotationSpeed = 2.5; // radians per second
+      if (keys.ArrowLeft) {
+        rotateThirdPersonCamera(rotationSpeed * delta);
+      } else if (keys.ArrowRight) {
+        rotateThirdPersonCamera(-rotationSpeed * delta);
+      }
+      
+      // Arrow up/down: Move forward/backward relative to camera angle
+      if (keys.ArrowUp) {
+        dx = -Math.sin(thirdPersonAngle);
+        dz = -Math.cos(thirdPersonAngle);
+      } else if (keys.ArrowDown) {
+        dx = Math.sin(thirdPersonAngle);
+        dz = Math.cos(thirdPersonAngle);
+      }
+      
+      // WASD still works normally in third-person mode
+      if (keys.w) dz -= 1;
+      if (keys.s) dz += 1;
+      if (keys.a) dx -= 1;
+      if (keys.d) dx += 1;
+    } 
     // Dragon Quest Mode: Different controls
-    if (cameraMode === "dragon-quest") {
+    else if (cameraMode === "dragon-quest") {
       // In Dragon Quest mode:
       // - Arrow Up: Move forward (in the direction camera is facing)
       // - Arrow Down: Turn around and move backward

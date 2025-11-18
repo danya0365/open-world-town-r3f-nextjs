@@ -7,6 +7,10 @@ interface CameraStore {
   setMode: (mode: CameraMode) => void;
   cycleMode: () => void;
   
+  // Third-person mode specific state
+  thirdPersonAngle: number; // Smooth rotation angle
+  rotateThirdPersonCamera: (delta: number) => void; // Smooth rotation
+  
   // Dragon Quest mode specific state
   dragonQuestAngle: number; // Angle in radians (0, π/4, π/2, 3π/4, π, 5π/4, 3π/2, 7π/4)
   dragonQuestDistance: number; // Zoom distance
@@ -18,6 +22,9 @@ const CAMERA_MODES: CameraMode[] = ["top-down", "isometric", "third-person", "dr
 
 export const useCameraStore = create<CameraStore>((set, get) => ({
   mode: "top-down",
+  
+  // Third-person initial state
+  thirdPersonAngle: 0, // Start facing north
   
   // Dragon Quest initial state
   dragonQuestAngle: 0, // Start facing north
@@ -32,6 +39,12 @@ export const useCameraStore = create<CameraStore>((set, get) => ({
     const currentIndex = CAMERA_MODES.indexOf(currentMode);
     const nextIndex = (currentIndex + 1) % CAMERA_MODES.length;
     set({ mode: CAMERA_MODES[nextIndex] });
+  },
+  
+  rotateThirdPersonCamera: (delta: number) => {
+    const currentAngle = get().thirdPersonAngle;
+    const newAngle = currentAngle + delta;
+    set({ thirdPersonAngle: newAngle });
   },
   
   rotateDragonQuestCamera: (direction: "left" | "right") => {

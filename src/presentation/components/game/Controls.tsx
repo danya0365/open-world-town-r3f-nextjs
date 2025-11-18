@@ -25,7 +25,7 @@ interface KeyState {
  * Manages keyboard input for player movement
  */
 export function useControls() {
-  const { cycleMode, mode, rotateDragonQuestCamera, zoomDragonQuestCamera } = useCameraStore();
+  const { cycleMode, mode, rotateDragonQuestCamera, zoomDragonQuestCamera, rotateThirdPersonCamera } = useCameraStore();
   const [keys, setKeys] = useState<KeyState>({
     w: false,
     a: false,
@@ -48,7 +48,7 @@ export function useControls() {
         setKeys((prev) => ({ ...prev, [key]: true }));
       }
       if (key.startsWith("arrow")) {
-        // In dragon-quest mode, arrow left/right rotate camera
+        // In dragon-quest mode, arrow left/right rotate camera (discrete 45° steps)
         if (mode === "dragon-quest" && (e.key === "ArrowLeft" || e.key === "ArrowRight")) {
           if (e.key === "ArrowLeft") {
             rotateDragonQuestCamera("left");
@@ -57,6 +57,7 @@ export function useControls() {
           }
           e.preventDefault();
         } else {
+          // For third-person and other modes, track arrow keys for smooth rotation
           setKeys((prev) => ({ ...prev, [e.key]: true }));
         }
       }
@@ -147,7 +148,28 @@ export function ControlsInfo() {
             </button>
           </div>
           <div className="space-y-1">
-            {cameraMode === "dragon-quest" ? (
+            {cameraMode === "third-person" ? (
+              <>
+                <div>
+                  <span className="text-yellow-400">↑ Arrow:</span> Move Forward
+                </div>
+                <div>
+                  <span className="text-yellow-400">↓ Arrow:</span> Move Backward
+                </div>
+                <div>
+                  <span className="text-yellow-400">← → Arrows:</span> Rotate Camera (Smooth)
+                </div>
+                <div>
+                  <span className="text-yellow-400">WASD:</span> Move
+                </div>
+                <div>
+                  <span className="text-yellow-400">Shift:</span> Sprint
+                </div>
+                <div>
+                  <span className="text-yellow-400">C:</span> Cycle Camera
+                </div>
+              </>
+            ) : cameraMode === "dragon-quest" ? (
               <>
                 <div>
                   <span className="text-yellow-400">↑ Arrow:</span> Move Forward

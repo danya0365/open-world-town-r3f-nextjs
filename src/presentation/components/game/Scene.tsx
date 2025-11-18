@@ -31,6 +31,7 @@ export function Scene() {
   const playerPosition = usePlayerStore((state) => state.position);
   const playerRotation = usePlayerStore((state) => state.rotation);
   const cameraMode = useCameraStore((state) => state.mode);
+  const thirdPersonAngle = useCameraStore((state) => state.thirdPersonAngle);
   const dragonQuestAngle = useCameraStore((state) => state.dragonQuestAngle);
   const dragonQuestDistance = useCameraStore((state) => state.dragonQuestDistance);
   const mapName = useGameStore((state) => state.mapName);
@@ -91,7 +92,7 @@ export function Scene() {
       }
 
       case "third-person": {
-        // Third-person view (behind player)
+        // Third-person view (camera-controlled rotation)
         const distance = 6;
         const height = 3;
         const focus = thirdPersonFocusRef.current;
@@ -107,9 +108,9 @@ export function Scene() {
           focus.lerp(desiredFocus, smoothing);
         }
 
-        // Calculate camera position behind player based on player rotation
-        const camX = focus.x - Math.sin(playerRotation) * distance;
-        const camZ = focus.z - Math.cos(playerRotation) * distance;
+        // Calculate camera position based on thirdPersonAngle (independent of player rotation)
+        const camX = focus.x + Math.sin(thirdPersonAngle) * distance;
+        const camZ = focus.z + Math.cos(thirdPersonAngle) * distance;
 
         camera.position.set(camX, height, camZ);
 
