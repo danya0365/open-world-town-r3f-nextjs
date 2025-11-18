@@ -2,12 +2,14 @@
 
 import { usePlayerStore } from "@/src/presentation/stores/playerStore";
 import { useMultiplayerStore } from "@/src/presentation/stores/multiplayerStore";
-import { Circle } from "@react-three/drei";
+import { useCollisionStore } from "@/src/presentation/stores/collisionStore";
+import { Circle, Box } from "@react-three/drei";
 import { useMemo } from "react";
+import type { BoxCollider, CircleCollider } from "@/src/presentation/utils/collision";
 
 /**
  * Collision Debug Visualizer
- * Shows collision radius around players for debugging
+ * Shows collision radius around players and obstacles for debugging
  */
 export function CollisionDebug() {
   const playerPosition = usePlayerStore((state) => state.position);
@@ -16,6 +18,7 @@ export function CollisionDebug() {
     (state) => state.enablePlayerCollision
   );
   const players = useMultiplayerStore((state) => state.players);
+  const obstacles = useCollisionStore((state) => state.obstacles);
 
   const otherPlayers = useMemo(() => {
     return Array.from(players.values());
@@ -47,6 +50,35 @@ export function CollisionDebug() {
           <meshBasicMaterial color="#ff0000" transparent opacity={0.2} />
         </Circle>
       ))}
+      
+      {/* Obstacles collision visualization */}
+      {obstacles.map((obstacle) => {
+        if (obstacle.type === "box") {
+          const box = obstacle.collider as BoxCollider;
+          return (
+            <Box
+              key={obstacle.id}
+              args={[box.width, 0.1, box.depth]}
+              position={[box.x, 0.05, box.z]}
+            >
+              <meshBasicMaterial color="#ffff00" transparent opacity={0.15} wireframe />
+            </Box>
+          );
+        } else if (obstacle.type === "circle") {
+          const circle = obstacle.collider as CircleCollider;
+          return (
+            <Circle
+              key={obstacle.id}
+              args={[circle.radius, 32]}
+              position={[circle.x, 0.02, circle.z]}
+              rotation={[-Math.PI / 2, 0, 0]}
+            >
+              <meshBasicMaterial color="#ff00ff" transparent opacity={0.15} />
+            </Circle>
+          );
+        }
+        return null;
+      })}
     </group>
   );
 }

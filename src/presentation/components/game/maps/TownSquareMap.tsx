@@ -1,12 +1,114 @@
 "use client";
 
 import { Box, Cylinder, Sphere } from "@react-three/drei";
+import { useEffect } from "react";
+import { useCollisionStore } from "@/src/presentation/stores/collisionStore";
 
 /**
  * Town Square Map
  * A bustling town center with buildings and decorations
  */
 export function TownSquareMap() {
+  // Register obstacles on mount
+  useEffect(() => {
+    const addObstacle = useCollisionStore.getState().addObstacle;
+    const clearObstacles = useCollisionStore.getState().clearObstacles;
+    
+    // Clear previous obstacles
+    clearObstacles();
+    
+    // Register fountain (center)
+    addObstacle({
+      id: "fountain",
+      type: "circle",
+      collider: { x: 0, z: 0, radius: 1.8 },
+      name: "Fountain",
+    });
+    
+    // Register buildings
+    addObstacle({
+      id: "building-north",
+      type: "box",
+      collider: { x: 0, z: -8, width: 4, depth: 3 },
+      name: "Building North",
+    });
+    
+    addObstacle({
+      id: "building-south",
+      type: "box",
+      collider: { x: 0, z: 8, width: 5, depth: 3 },
+      name: "Building South",
+    });
+    
+    addObstacle({
+      id: "building-east",
+      type: "box",
+      collider: { x: 8, z: 0, width: 3, depth: 4 },
+      name: "Building East",
+    });
+    
+    addObstacle({
+      id: "building-west",
+      type: "box",
+      collider: { x: -8, z: 0, width: 3, depth: 3.5 },
+      name: "Building West",
+    });
+    
+    // Register market stalls
+    addObstacle({
+      id: "stall-1",
+      type: "box",
+      collider: { x: 5, z: 5, width: 1.5, depth: 1.5 },
+      name: "Market Stall 1",
+    });
+    
+    addObstacle({
+      id: "stall-2",
+      type: "box",
+      collider: { x: -5, z: 5, width: 1.5, depth: 1.5 },
+      name: "Market Stall 2",
+    });
+    
+    // Register trees
+    const treePositions = [
+      [-10, -10],
+      [10, -10],
+      [-10, 10],
+      [10, 10],
+    ];
+    
+    treePositions.forEach((pos, i) => {
+      addObstacle({
+        id: `tree-${i}`,
+        type: "circle",
+        collider: { x: pos[0], z: pos[1], radius: 1.3 },
+        name: `Tree ${i + 1}`,
+      });
+    });
+    
+    // Register street lamps
+    const lampPositions = [
+      [4, -4],
+      [-4, -4],
+      [4, 4],
+      [-4, 4],
+    ];
+    
+    lampPositions.forEach((pos, i) => {
+      addObstacle({
+        id: `lamp-${i}`,
+        type: "circle",
+        collider: { x: pos[0], z: pos[1], radius: 0.3 },
+        name: `Street Lamp ${i + 1}`,
+      });
+    });
+    
+    // Cleanup on unmount
+    return () => {
+      clearObstacles();
+    };
+  }, []);
+  
   return (
     <group>
       {/* Ground */}

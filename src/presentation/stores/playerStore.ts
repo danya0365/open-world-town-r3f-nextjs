@@ -1,4 +1,13 @@
 import { create } from "zustand";
+import {
+  checkCircleBoxCollision,
+  checkCircleCollision,
+  resolveCircleBoxCollision,
+  resolveCircleCollision,
+  type CircleCollider,
+  type BoxCollider,
+} from "../utils/collision";
+import { useCollisionStore } from "./collisionStore";
 
 interface PlayerState {
   position: [number, number, number];
@@ -63,9 +72,44 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
       Math.min(worldBounds - state.collisionRadius, newZ)
     );
 
-    // Check collision with other players if enabled
+    // Check collision with obstacles if enabled
     if (state.enablePlayerCollision) {
-      // TODO: Implement player collision
+      const obstacles = useCollisionStore.getState().getObstacles();
+      
+      // Check collision with each obstacle
+      for (const obstacle of obstacles) {
+        if (obstacle.type === "box") {
+          const boxCollider = obstacle.collider as BoxCollider;
+          const playerCircle: CircleCollider = {
+            x: newX,
+            z: newZ,
+            radius: state.collisionRadius,
+          };
+          
+          // Check if collision occurs
+          if (checkCircleBoxCollision(playerCircle, boxCollider)) {
+            // Resolve collision
+            const resolved = resolveCircleBoxCollision(playerCircle, boxCollider);
+            newX = resolved.x;
+            newZ = resolved.z;
+          }
+        } else if (obstacle.type === "circle") {
+          const circleCollider = obstacle.collider as CircleCollider;
+          const playerCircle: CircleCollider = {
+            x: newX,
+            z: newZ,
+            radius: state.collisionRadius,
+          };
+          
+          // Check if collision occurs
+          if (checkCircleCollision(playerCircle, circleCollider)) {
+            // Resolve collision
+            const resolved = resolveCircleCollision(playerCircle, circleCollider);
+            newX = resolved.x;
+            newZ = resolved.z;
+          }
+        }
+      }
     }
 
     // Calculate rotation based on movement direction

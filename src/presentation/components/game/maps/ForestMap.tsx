@@ -1,12 +1,75 @@
 "use client";
 
 import { Box, Cylinder, Sphere } from "@react-three/drei";
+import { useEffect, useMemo } from "react";
+import { useCollisionStore } from "@/src/presentation/stores/collisionStore";
 
 /**
  * Forest Map
  * Dense woodland area with trees and nature
  */
 export function ForestMap() {
+  // Generate consistent tree positions
+  const treePositions = useMemo(() => {
+    return Array.from({ length: 30 }).map((_, i) => {
+      const angle = (i / 30) * Math.PI * 2;
+      const radius = 8 + (i % 5) * 2; // More consistent radius
+      const x = Math.cos(angle) * radius;
+      const z = Math.sin(angle) * radius;
+      const scale = 0.8 + (i % 3) * 0.2;
+      return { x, z, scale, id: `tree-${i}` };
+    });
+  }, []);
+  
+  // Register obstacles on mount
+  useEffect(() => {
+    const addObstacle = useCollisionStore.getState().addObstacle;
+    const clearObstacles = useCollisionStore.getState().clearObstacles;
+    
+    // Clear previous obstacles
+    clearObstacles();
+    
+    // Register campfire area (center)
+    addObstacle({
+      id: "campfire",
+      type: "circle",
+      collider: { x: 0, z: 0, radius: 1.2 },
+      name: "Campfire",
+    });
+    
+    // Register large rocks
+    const rockPositions = [
+      [3, 3],
+      [-4, 2],
+      [2, -3],
+      [-3, -4],
+    ];
+    
+    rockPositions.forEach((pos, i) => {
+      addObstacle({
+        id: `rock-${i}`,
+        type: "box",
+        collider: { x: pos[0], z: pos[1], width: 1.5, depth: 1.5 },
+        name: `Rock ${i + 1}`,
+      });
+    });
+    
+    // Register trees as circular obstacles
+    treePositions.forEach((tree) => {
+      addObstacle({
+        id: tree.id,
+        type: "circle",
+        collider: { x: tree.x, z: tree.z, radius: 0.6 * tree.scale },
+        name: tree.id,
+      });
+    });
+    
+    // Cleanup on unmount
+    return () => {
+      clearObstacles();
+    };
+  }, [treePositions]);
+  
   return (
     <group>
       {/* Ground - Grass */}
@@ -16,15 +79,8 @@ export function ForestMap() {
       </mesh>
 
       {/* Dense Trees */}
-      {Array.from({ length: 30 }).map((_, i) => {
-        const angle = (i / 30) * Math.PI * 2;
-        const radius = 8 + Math.random() * 10;
-        const x = Math.cos(angle) * radius;
-        const z = Math.sin(angle) * radius;
-        const scale = 0.8 + Math.random() * 0.6;
-
-        return (
-          <group key={`tree-${i}`} position={[x, 0, z]} scale={scale}>
+      {treePositions.map((tree) => (
+          <group key={tree.id} position={[tree.x, 0, tree.z]} scale={tree.scale}>
             {/* Trunk */}
             <Cylinder args={[0.4, 0.5, 3]} position={[0, 1.5, 0]} castShadow>
               <meshStandardMaterial color="#5A3825" />
@@ -40,8 +96,7 @@ export function ForestMap() {
               <meshStandardMaterial color="#15803D" />
             </Sphere>
           </group>
-        );
-      })}
+      ))}
 
       {/* Bushes */}
       {Array.from({ length: 20 }).map((_, i) => {
