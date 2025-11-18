@@ -16,6 +16,7 @@ import { VideoGrid } from "./VideoGrid";
 import { VoiceVideoSync } from "./VoiceVideoSync";
 import { SpatialAudioManager } from "./SpatialAudioManager";
 import { NotificationCenter } from "../feedback/NotificationCenter";
+import { DragonQuestControls } from "./DragonQuestControls";
 import { useMultiplayerStore } from "@/src/presentation/stores/multiplayerStore";
 
 /**
@@ -62,6 +63,9 @@ export function GameView() {
 
       {/* Controls Info */}
       <ControlsInfo />
+
+      {/* Dragon Quest On-Screen Controls */}
+      <DragonQuestControls />
 
       {/* Global Notifications */}
       <NotificationCenter />

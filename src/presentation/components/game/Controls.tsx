@@ -16,6 +16,8 @@ interface KeyState {
   ArrowRight: boolean;
   shift: boolean;
   space: boolean;
+  q: boolean; // Zoom out in dragon-quest mode
+  e: boolean; // Zoom in in dragon-quest mode
 }
 
 /**
@@ -23,7 +25,7 @@ interface KeyState {
  * Manages keyboard input for player movement
  */
 export function useControls() {
-  const { cycleMode } = useCameraStore();
+  const { cycleMode, mode, rotateDragonQuestCamera, zoomDragonQuestCamera } = useCameraStore();
   const [keys, setKeys] = useState<KeyState>({
     w: false,
     a: false,
@@ -35,6 +37,8 @@ export function useControls() {
     ArrowRight: false,
     shift: false,
     space: false,
+    q: false,
+    e: false,
   });
 
   useEffect(() => {
@@ -44,7 +48,17 @@ export function useControls() {
         setKeys((prev) => ({ ...prev, [key]: true }));
       }
       if (key.startsWith("arrow")) {
-        setKeys((prev) => ({ ...prev, [e.key]: true }));
+        // In dragon-quest mode, arrow left/right rotate camera
+        if (mode === "dragon-quest" && (e.key === "ArrowLeft" || e.key === "ArrowRight")) {
+          if (e.key === "ArrowLeft") {
+            rotateDragonQuestCamera("left");
+          } else {
+            rotateDragonQuestCamera("right");
+          }
+          e.preventDefault();
+        } else {
+          setKeys((prev) => ({ ...prev, [e.key]: true }));
+        }
       }
       if (key === "shift") {
         setKeys((prev) => ({ ...prev, shift: true }));
@@ -57,6 +71,19 @@ export function useControls() {
         cycleMode();
         e.preventDefault();
       }
+      // Zoom controls for dragon-quest mode
+      if (key === "q") {
+        if (mode === "dragon-quest") {
+          zoomDragonQuestCamera("out");
+        }
+        setKeys((prev) => ({ ...prev, q: true }));
+      }
+      if (key === "e") {
+        if (mode === "dragon-quest") {
+          zoomDragonQuestCamera("in");
+        }
+        setKeys((prev) => ({ ...prev, e: true }));
+      }
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
@@ -65,13 +92,22 @@ export function useControls() {
         setKeys((prev) => ({ ...prev, [key]: false }));
       }
       if (key.startsWith("arrow")) {
-        setKeys((prev) => ({ ...prev, [e.key]: false }));
+        // Don't track arrow keys in dragon-quest mode for left/right
+        if (!(mode === "dragon-quest" && (e.key === "ArrowLeft" || e.key === "ArrowRight"))) {
+          setKeys((prev) => ({ ...prev, [e.key]: false }));
+        }
       }
       if (key === "shift") {
         setKeys((prev) => ({ ...prev, shift: false }));
       }
       if (key === " ") {
         setKeys((prev) => ({ ...prev, space: false }));
+      }
+      if (key === "q") {
+        setKeys((prev) => ({ ...prev, q: false }));
+      }
+      if (key === "e") {
+        setKeys((prev) => ({ ...prev, e: false }));
       }
     };
 
@@ -82,7 +118,7 @@ export function useControls() {
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
     };
-  }, [cycleMode]);
+  }, [cycleMode, mode, rotateDragonQuestCamera, zoomDragonQuestCamera]);
 
   return keys;
 }
@@ -111,24 +147,46 @@ export function ControlsInfo() {
             </button>
           </div>
           <div className="space-y-1">
-            <div>
-              <span className="text-yellow-400">WASD / Arrow Keys:</span> Move
-            </div>
-            <div>
-              <span className="text-yellow-400">Left Click + Drag:</span> Pan Camera
-            </div>
-            <div>
-              <span className="text-yellow-400">Scroll Wheel:</span> Zoom
-            </div>
-            <div>
-              <span className="text-yellow-400">Shift:</span> Sprint
-            </div>
-            <div>
-              <span className="text-yellow-400">Space:</span> Action
-            </div>
-            <div>
-              <span className="text-yellow-400">C:</span> Cycle Camera
-            </div>
+            {cameraMode === "dragon-quest" ? (
+              <>
+                <div>
+                  <span className="text-yellow-400">↑ Arrow:</span> Move Forward
+                </div>
+                <div>
+                  <span className="text-yellow-400">↓ Arrow:</span> Move Backward
+                </div>
+                <div>
+                  <span className="text-yellow-400">← → Arrows:</span> Rotate Camera (45°)
+                </div>
+                <div>
+                  <span className="text-yellow-400">Q / E:</span> Zoom Out / In
+                </div>
+                <div>
+                  <span className="text-yellow-400">WASD:</span> Move
+                </div>
+                <div>
+                  <span className="text-yellow-400">Shift:</span> Sprint
+                </div>
+                <div>
+                  <span className="text-yellow-400">C:</span> Cycle Camera
+                </div>
+              </>
+            ) : (
+              <>
+                <div>
+                  <span className="text-yellow-400">WASD / Arrow Keys:</span> Move
+                </div>
+                <div>
+                  <span className="text-yellow-400">Shift:</span> Sprint
+                </div>
+                <div>
+                  <span className="text-yellow-400">Space:</span> Action
+                </div>
+                <div>
+                  <span className="text-yellow-400">C:</span> Cycle Camera
+                </div>
+              </>
+            )}
           </div>
 
           {/* Camera Mode Switcher */}
@@ -137,10 +195,10 @@ export function ControlsInfo() {
               <Camera size={14} />
               <span>Camera Mode</span>
             </div>
-            <div className="flex gap-2">
+            <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={() => setCameraMode("top-down")}
-                className={`flex-1 px-3 py-2 rounded text-xs transition-all ${
+                className={`px-3 py-2 rounded text-xs transition-all ${
                   cameraMode === "top-down"
                     ? "bg-blue-600 text-white"
                     : "bg-white/10 text-gray-300 hover:bg-white/20"
@@ -151,7 +209,7 @@ export function ControlsInfo() {
               </button>
               <button
                 onClick={() => setCameraMode("isometric")}
-                className={`flex-1 px-3 py-2 rounded text-xs transition-all ${
+                className={`px-3 py-2 rounded text-xs transition-all ${
                   cameraMode === "isometric"
                     ? "bg-blue-600 text-white"
                     : "bg-white/10 text-gray-300 hover:bg-white/20"
@@ -162,7 +220,7 @@ export function ControlsInfo() {
               </button>
               <button
                 onClick={() => setCameraMode("third-person")}
-                className={`flex-1 px-3 py-2 rounded text-xs transition-all ${
+                className={`px-3 py-2 rounded text-xs transition-all ${
                   cameraMode === "third-person"
                     ? "bg-blue-600 text-white"
                     : "bg-white/10 text-gray-300 hover:bg-white/20"
@@ -170,6 +228,17 @@ export function ControlsInfo() {
                 title="Third-Person View"
               >
                 👤 3rd
+              </button>
+              <button
+                onClick={() => setCameraMode("dragon-quest")}
+                className={`px-3 py-2 rounded text-xs transition-all ${
+                  cameraMode === "dragon-quest"
+                    ? "bg-blue-600 text-white"
+                    : "bg-white/10 text-gray-300 hover:bg-white/20"
+                }`}
+                title="Dragon Quest View (Rotatable)"
+              >
+                🐉 DQ
               </button>
             </div>
             <button

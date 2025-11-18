@@ -1,6 +1,7 @@
 "use client";
 
-import { useCameraStore } from "@/src/presentation/stores/cameraStore";
+import { useRef } from "react";
+import { useCameraStore, type CameraMode } from "@/src/presentation/stores/cameraStore";
 import { usePlayerStore } from "@/src/presentation/stores/playerStore";
 import { useGameStore } from "@/src/presentation/stores/gameStore";
 import {
@@ -9,6 +10,7 @@ import {
   PerspectiveCamera,
 } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
+import { Vector3 } from "three";
 import { CollisionDebug } from "./CollisionDebug";
 import { DebugStats } from "./DebugStats";
 import { Grid } from "./Grid";
@@ -29,8 +31,13 @@ export function Scene() {
   const playerPosition = usePlayerStore((state) => state.position);
   const playerRotation = usePlayerStore((state) => state.rotation);
   const cameraMode = useCameraStore((state) => state.mode);
+  const dragonQuestAngle = useCameraStore((state) => state.dragonQuestAngle);
+  const dragonQuestDistance = useCameraStore((state) => state.dragonQuestDistance);
   const mapName = useGameStore((state) => state.mapName);
   const { camera } = useThree();
+  const dragonQuestFocusRef = useRef(new Vector3(playerPosition[0], 0.5, playerPosition[2]));
+  const dragonQuestDesiredRef = useRef(new Vector3());
+  const previousCameraMode = useRef<CameraMode | null>(null);
 
   // Update camera to follow player with different modes
   useFrame(() => {
@@ -89,7 +96,40 @@ export function Scene() {
         camera.lookAt(targetX, 0.5, targetZ);
         break;
       }
+
+      case "dragon-quest": {
+        // Dragon Quest style view (rotatable 45-degree increments)
+        const height = dragonQuestDistance * 0.6; // Height based on distance
+        const focus = dragonQuestFocusRef.current;
+        const desiredFocus = dragonQuestDesiredRef.current.set(
+          playerPosition[0],
+          0.5,
+          playerPosition[2]
+        );
+
+        if (previousCameraMode.current !== "dragon-quest") {
+          focus.copy(desiredFocus);
+        } else {
+          focus.lerp(desiredFocus, smoothing);
+        }
+
+        // Calculate camera position based on angle and distance
+        const offsetX = Math.sin(dragonQuestAngle) * dragonQuestDistance;
+        const offsetZ = Math.cos(dragonQuestAngle) * dragonQuestDistance;
+
+        camera.position.set(
+          focus.x + offsetX,
+          height,
+          focus.z + offsetZ
+        );
+
+        // Look at the smoothed focus point to keep orientation stable
+        camera.lookAt(focus.x, focus.y, focus.z);
+        break;
+      }
     }
+
+    previousCameraMode.current = cameraMode;
   });
 
   return (

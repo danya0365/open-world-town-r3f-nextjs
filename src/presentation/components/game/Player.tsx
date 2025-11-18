@@ -3,6 +3,7 @@
 import { useFrame } from "@react-three/fiber";
 import { usePlayerStore } from "@/src/presentation/stores/playerStore";
 import { useMultiplayerStore } from "@/src/presentation/stores/multiplayerStore";
+import { useCameraStore } from "@/src/presentation/stores/cameraStore";
 import { useControls } from "./Controls";
 import { useRef, useMemo } from "react";
 import type { Mesh } from "three";
@@ -17,6 +18,8 @@ export function Player() {
   const headRef = useRef<Mesh>(null);
   const { position, rotation, isMoving, movePlayer } = usePlayerStore();
   const { sendMove, isConnected } = useMultiplayerStore();
+  const cameraMode = useCameraStore((state) => state.mode);
+  const dragonQuestAngle = useCameraStore((state) => state.dragonQuestAngle);
   const keys = useControls();
   
   // Animation state
@@ -32,11 +35,36 @@ export function Player() {
     let dx = 0;
     let dz = 0;
 
-    // Calculate movement direction
-    if (keys.w || keys.ArrowUp) dz -= 1;
-    if (keys.s || keys.ArrowDown) dz += 1;
-    if (keys.a || keys.ArrowLeft) dx -= 1;
-    if (keys.d || keys.ArrowRight) dx += 1;
+    // Dragon Quest Mode: Different controls
+    if (cameraMode === "dragon-quest") {
+      // In Dragon Quest mode:
+      // - Arrow Up: Move forward (in the direction camera is facing)
+      // - Arrow Down: Turn around and move backward
+      // - Arrow Left/Right: Rotate camera (handled in Controls.tsx)
+      
+      if (keys.ArrowUp) {
+        // Move forward relative to camera angle
+        dx = -Math.sin(dragonQuestAngle);
+        dz = -Math.cos(dragonQuestAngle);
+      } else if (keys.ArrowDown) {
+        // Move backward (turn around)
+        dx = Math.sin(dragonQuestAngle);
+        dz = Math.cos(dragonQuestAngle);
+      }
+      
+      // WASD still works normally in dragon-quest mode
+      if (keys.w) dz -= 1;
+      if (keys.s) dz += 1;
+      if (keys.a) dx -= 1;
+      if (keys.d) dx += 1;
+    } else {
+      // Standard controls for other camera modes
+      // Calculate movement direction
+      if (keys.w || keys.ArrowUp) dz -= 1;
+      if (keys.s || keys.ArrowDown) dz += 1;
+      if (keys.a || keys.ArrowLeft) dx -= 1;
+      if (keys.d || keys.ArrowRight) dx += 1;
+    }
 
     // Normalize diagonal movement
     if (dx !== 0 && dz !== 0) {
