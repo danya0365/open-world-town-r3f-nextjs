@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { useGameStore } from "./gameStore";
+import { usePlayerStore } from "./playerStore";
 import type { MapName } from "@/src/domain/types/room";
 
 const DEFAULT_SEAT_COUNT = 5;
@@ -10,6 +11,11 @@ export type TableStatus = "open" | "starting" | "in_progress" | "cooldown";
 type TableMessageSender = (type: string, payload?: unknown) => void;
 
 export type PokerActionType = "fold" | "bet" | "raise" | "call" | "insurance";
+
+export interface SeatTransform {
+  position: [number, number, number];
+  rotation: number;
+}
 
 export interface PokerActionPayload {
   action: PokerActionType;
@@ -41,6 +47,7 @@ interface TableState {
   sendMessage: TableMessageSender | null;
   myPlayerId: string | null;
   pendingActions: TableAction[];
+  seatTransforms: SeatTransform[];
 }
 
 interface TableActions {
@@ -55,6 +62,7 @@ interface TableActions {
   setFocusedSeat: (seatIndex: number | null) => void;
   setNetworkContext: (context: { myPlayerId: string | null; sendMessage: TableMessageSender | null }) => void;
   sendPokerAction: (payload: PokerActionPayload) => void;
+  setSeatTransforms: (transforms: SeatTransform[]) => void;
   reset: () => void;
 }
 
@@ -119,6 +127,7 @@ export const useTableStore = create<TableStore>((set, get) => ({
   sendMessage: null,
   myPlayerId: null,
   pendingActions: [],
+  seatTransforms: [],
 
   initialize: (hostId, seatCount = DEFAULT_SEAT_COUNT) => {
     const { myPlayerId } = get();
@@ -172,7 +181,8 @@ export const useTableStore = create<TableStore>((set, get) => ({
       return;
     }
 
-    if (seat.playerId !== null) {
+    const hasOtherOccupant = Boolean(seat.playerId && seat.playerId !== myPlayerId);
+    if (hasOtherOccupant) {
       return; // ที่นั่งถูกจับจองแล้ว
     }
 
@@ -192,6 +202,11 @@ export const useTableStore = create<TableStore>((set, get) => ({
 
       return { seats: nextSeats, pendingActions: nextPending, localFrame: frameId };
     });
+
+    const seatTransform = state.seatTransforms[seatIndex];
+    if (seatTransform) {
+      usePlayerStore.getState().sitDown(seatIndex, seatTransform);
+    }
 
     sendMessage("table_join", { seatIndex, frameId });
   },
@@ -227,6 +242,11 @@ export const useTableStore = create<TableStore>((set, get) => ({
 
       return { seats: nextSeats, pendingActions: nextPending, localFrame: frameId };
     });
+
+    const playerStore = usePlayerStore.getState();
+    if (playerStore.seatedSeatIndex === resolvedIndex) {
+      playerStore.standUp();
+    }
 
     sendMessage("table_leave", { seatIndex: resolvedIndex, frameId });
   },
@@ -293,6 +313,20 @@ export const useTableStore = create<TableStore>((set, get) => ({
     }
 
     sendMessage("poker_player_action", payload);
+  },
+
+  setSeatTransforms: (transforms) => {
+    set({ seatTransforms: transforms });
+
+    const { myPlayerId, seats } = get();
+    if (!myPlayerId) {
+      return;
+    }
+
+    const currentSeatIndex = seats.findIndex((seat) => seat.playerId === myPlayerId);
+    if (currentSeatIndex >= 0 && transforms[currentSeatIndex]) {
+      usePlayerStore.getState().sitDown(currentSeatIndex, transforms[currentSeatIndex]);
+    }
   },
 
   reset: () => {

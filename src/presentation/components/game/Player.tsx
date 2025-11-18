@@ -16,7 +16,7 @@ import * as THREE from "three";
 export function Player() {
   const meshRef = useRef<Mesh>(null);
   const headRef = useRef<Mesh>(null);
-  const { position, rotation, isMoving, movePlayer } = usePlayerStore();
+  const { position, rotation, isMoving, movePlayer, isSitting } = usePlayerStore();
   const cameraMode = useCameraStore((state) => state.mode);
   const { sendMove, isConnected } = useMultiplayerStore();
   const keys = useControls();
@@ -34,10 +34,12 @@ export function Player() {
     let forward = 0;
     let strafe = 0;
 
-    if (keys.w || keys.ArrowUp) forward += 1;
-    if (keys.s || keys.ArrowDown) forward -= 1;
-    if (keys.d || keys.ArrowRight) strafe += 1;
-    if (keys.a || keys.ArrowLeft) strafe -= 1;
+    if (!isSitting) {
+      if (keys.w || keys.ArrowUp) forward += 1;
+      if (keys.s || keys.ArrowDown) forward -= 1;
+      if (keys.d || keys.ArrowRight) strafe += 1;
+      if (keys.a || keys.ArrowLeft) strafe -= 1;
+    }
 
     let dx = 0;
     let dz = 0;
@@ -70,21 +72,28 @@ export function Player() {
     if (meshRef.current) {
       meshRef.current.position.set(...position);
       meshRef.current.rotation.y = rotation;
-      
+
       // Body color animation
-      bodyColor.lerp(new THREE.Color(targetColor), 0.1);
+      const colorTarget = isSitting ? "#9333EA" : targetColor;
+      bodyColor.lerp(new THREE.Color(colorTarget), 0.1);
       if (meshRef.current.material) {
         (meshRef.current.material as THREE.MeshStandardMaterial).color = bodyColor;
       }
     }
     
     // Head bobbing animation when moving
-    if (headRef.current && isMoving) {
-      const bobAmount = Math.sin(animTime.current * 10) * 0.05;
-      headRef.current.position.y = 1.2 + bobAmount;
-    } else if (headRef.current) {
-      // Return to original position
-      headRef.current.position.y = 1.2;
+    if (headRef.current) {
+      if (isSitting) {
+        headRef.current.position.set(position[0], position[1] + 1.1, position[2] - 0.2);
+        headRef.current.rotation.x = -Math.PI / 6;
+      } else if (isMoving) {
+        const bobAmount = Math.sin(animTime.current * 10) * 0.05;
+        headRef.current.position.set(position[0], position[1] + 1.2 + bobAmount, position[2]);
+        headRef.current.rotation.x = 0;
+      } else {
+        headRef.current.position.set(position[0], position[1] + 1.2, position[2]);
+        headRef.current.rotation.x = 0;
+      }
     }
 
     // Send position to server (throttled by frame rate)

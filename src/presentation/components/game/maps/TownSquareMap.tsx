@@ -18,6 +18,7 @@ export function TownSquareMap() {
   const leaveSeat = useTableStore((state) => state.leaveSeat);
   const setFocusedSeat = useTableStore((state) => state.setFocusedSeat);
   const focusedSeatIndex = useTableStore((state) => state.focusedSeatIndex);
+  const setSeatTransforms = useTableStore((state) => state.setSeatTransforms);
   const myPlayerId = useMultiplayerStore((state) => state.myPlayerId);
   const players = useMultiplayerStore((state) => state.players);
 
@@ -32,6 +33,33 @@ export function TownSquareMap() {
     ],
     []
   );
+
+  useEffect(() => {
+    const transforms = seatOffsets.map((offset) => {
+      const worldPosition = tablePosition.clone().add(offset);
+      const directionX = tablePosition.x - worldPosition.x;
+      const directionZ = tablePosition.z - worldPosition.z;
+      const rotation = Math.atan2(directionX, directionZ);
+
+      return {
+        position: [worldPosition.x, 0, worldPosition.z] as [number, number, number],
+        rotation,
+      };
+    });
+
+    setSeatTransforms(transforms);
+
+    return () => {
+      setSeatTransforms([]);
+    };
+  }, [seatOffsets, setSeatTransforms, tablePosition]);
+
+  useEffect(() => {
+    const playerStore = usePlayerStore.getState();
+    if (!playerStore.enablePlayerCollision) {
+      leaveSeat();
+    }
+  }, [leaveSeat]);
 
   useFrame(() => {
     const playerVec = new Vector3(playerPosition[0], playerPosition[1], playerPosition[2]);

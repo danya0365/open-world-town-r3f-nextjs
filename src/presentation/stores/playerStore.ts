@@ -12,6 +12,8 @@ interface PlayerState {
   sprintMultiplier: number;
   collisionRadius: number;
   enablePlayerCollision: boolean;
+  isSitting: boolean;
+  seatedSeatIndex: number | null;
 }
 
 interface PlayerActions {
@@ -20,6 +22,8 @@ interface PlayerActions {
   setIsMoving: (isMoving: boolean) => void;
   movePlayer: (direction: [number, number], isSprinting: boolean) => void;
   togglePlayerCollision: () => void;
+  sitDown: (seatIndex: number, transform: { position: [number, number, number]; rotation: number }) => void;
+  standUp: () => void;
 }
 
 type PlayerStore = PlayerState & PlayerActions;
@@ -37,6 +41,8 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
   sprintMultiplier: 1.5,
   collisionRadius: 0.4, // Half of player width
   enablePlayerCollision: true,
+  isSitting: false,
+  seatedSeatIndex: null,
 
   // Actions
   setPosition: (position) => set({ position }),
@@ -47,6 +53,11 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
 
   movePlayer: (direction: [number, number], isSprinting: boolean = false) => {
     const state = get();
+
+    if (state.isSitting) {
+      return;
+    }
+
     const speed = isSprinting
       ? state.speed * state.sprintMultiplier
       : state.speed;
@@ -115,4 +126,22 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
     set((state) => ({
       enablePlayerCollision: !state.enablePlayerCollision,
     })),
+
+  sitDown: (seatIndex, transform) => {
+    set({
+      position: transform.position,
+      rotation: transform.rotation,
+      isSitting: true,
+      seatedSeatIndex: seatIndex,
+      isMoving: false,
+    });
+  },
+
+  standUp: () => {
+    set({
+      isSitting: false,
+      seatedSeatIndex: null,
+      isMoving: false,
+    });
+  },
 }));
