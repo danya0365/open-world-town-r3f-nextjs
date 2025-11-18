@@ -104,8 +104,8 @@ export function TableInteractionHUD() {
     };
   }, [actionFeedback, setActionFeedback]);
 
-  const shouldShowPanel =
-    focusedSeatIndex !== null || mySeatIndex !== -1 || (isHost && status !== "in_progress");
+  const isNearTable = focusedSeatIndex !== null || mySeatIndex !== -1;
+  const shouldShowPanel = isNearTable;
 
   if (!shouldShowPanel) {
     return null;
