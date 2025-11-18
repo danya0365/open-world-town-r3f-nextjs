@@ -1,8 +1,4 @@
 import { create } from "zustand";
-import {
-  checkCircleCollision,
-  resolveCircleCollision,
-} from "../utils/collision";
 
 interface PlayerState {
   position: [number, number, number];
@@ -69,33 +65,7 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
 
     // Check collision with other players if enabled
     if (state.enablePlayerCollision) {
-      // Get multiplayer players from store
-      // We'll use a global reference to avoid circular dependencies
-      if (typeof window !== "undefined") {
-        const multiplayerStore = (window as typeof window & { __multiplayerStore?: { getState: () => { players: Map<string, { id: string; x: number; z: number }> } } }).__multiplayerStore;
-
-        if (multiplayerStore) {
-          const { players } = multiplayerStore.getState();
-
-          // Check collision with each player
-          players.forEach((player) => {
-            const collision = checkCircleCollision(
-              { x: newX, z: newZ, radius: state.collisionRadius },
-              { x: player.x, z: player.z, radius: state.collisionRadius }
-            );
-
-            if (collision) {
-              // Resolve collision by pushing player away
-              const resolved = resolveCircleCollision(
-                { x: newX, z: newZ, radius: state.collisionRadius },
-                { x: player.x, z: player.z, radius: state.collisionRadius }
-              );
-              newX = resolved.x;
-              newZ = resolved.z;
-            }
-          });
-        }
-      }
+      // TODO: Implement player collision
     }
 
     // Calculate rotation based on movement direction
