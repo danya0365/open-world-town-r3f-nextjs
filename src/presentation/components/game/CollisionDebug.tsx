@@ -3,13 +3,14 @@
 import { usePlayerStore } from "@/src/presentation/stores/playerStore";
 import { useMultiplayerStore } from "@/src/presentation/stores/multiplayerStore";
 import { useCollisionStore } from "@/src/presentation/stores/collisionStore";
+import { useNPCStore } from "@/src/presentation/stores/npcStore";
 import { Circle, Box } from "@react-three/drei";
 import { useMemo } from "react";
 import type { BoxCollider, CircleCollider } from "@/src/presentation/utils/collision";
 
 /**
  * Collision Debug Visualizer
- * Shows collision radius around players and obstacles for debugging
+ * Shows collision radius around players, NPCs, and obstacles for debugging
  */
 export function CollisionDebug() {
   const playerPosition = usePlayerStore((state) => state.position);
@@ -19,10 +20,15 @@ export function CollisionDebug() {
   );
   const players = useMultiplayerStore((state) => state.players);
   const obstacles = useCollisionStore((state) => state.obstacles);
+  const npcs = useNPCStore((state) => state.npcs);
 
   const otherPlayers = useMemo(() => {
     return Array.from(players.values());
   }, [players]);
+  
+  const npcList = useMemo(() => {
+    return Array.from(npcs.values());
+  }, [npcs]);
 
   if (!enablePlayerCollision) {
     return null;
@@ -48,6 +54,18 @@ export function CollisionDebug() {
           rotation={[-Math.PI / 2, 0, 0]}
         >
           <meshBasicMaterial color="#ff0000" transparent opacity={0.2} />
+        </Circle>
+      ))}
+      
+      {/* NPC collision circles */}
+      {npcList.map((npc) => (
+        <Circle
+          key={npc.id}
+          args={[0.4, 32]}
+          position={[npc.position.x, 0.01, npc.position.z]}
+          rotation={[-Math.PI / 2, 0, 0]}
+        >
+          <meshBasicMaterial color="#00ffff" transparent opacity={0.25} />
         </Circle>
       ))}
       

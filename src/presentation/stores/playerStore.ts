@@ -8,6 +8,8 @@ import {
   type BoxCollider,
 } from "../utils/collision";
 import { useCollisionStore } from "./collisionStore";
+import { useNPCStore } from "./npcStore";
+import { useMultiplayerStore } from "./multiplayerStore";
 
 interface PlayerState {
   position: [number, number, number];
@@ -110,6 +112,53 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
           }
         }
       }
+      
+      // Check collision with NPCs
+      const npcs = useNPCStore.getState().npcs;
+      npcs.forEach((npc) => {
+        const npcCircle: CircleCollider = {
+          x: npc.position.x,
+          z: npc.position.z,
+          radius: 0.4, // NPC collision radius (same as player)
+        };
+        
+        const playerCircle: CircleCollider = {
+          x: newX,
+          z: newZ,
+          radius: state.collisionRadius,
+        };
+        
+        if (checkCircleCollision(playerCircle, npcCircle)) {
+          const resolved = resolveCircleCollision(playerCircle, npcCircle);
+          newX = resolved.x;
+          newZ = resolved.z;
+        }
+      });
+      
+      // Check collision with multiplayer players
+      const { players: multiplayerPlayers, myPlayerId } = useMultiplayerStore.getState();
+      multiplayerPlayers.forEach((player, playerId) => {
+        // Don't check collision with self
+        if (playerId === myPlayerId) return;
+        
+        const otherPlayerCircle: CircleCollider = {
+          x: player.x,
+          z: player.z,
+          radius: 0.4, // Other player collision radius
+        };
+        
+        const playerCircle: CircleCollider = {
+          x: newX,
+          z: newZ,
+          radius: state.collisionRadius,
+        };
+        
+        if (checkCircleCollision(playerCircle, otherPlayerCircle)) {
+          const resolved = resolveCircleCollision(playerCircle, otherPlayerCircle);
+          newX = resolved.x;
+          newZ = resolved.z;
+        }
+      });
     }
 
     // Calculate rotation based on movement direction
