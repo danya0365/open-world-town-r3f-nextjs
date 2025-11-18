@@ -37,6 +37,8 @@ export function Scene() {
   const { camera } = useThree();
   const isometricFocusRef = useRef(new Vector3(playerPosition[0], 0.5, playerPosition[2]));
   const isometricDesiredRef = useRef(new Vector3());
+  const thirdPersonFocusRef = useRef(new Vector3(playerPosition[0], 0.5, playerPosition[2]));
+  const thirdPersonDesiredRef = useRef(new Vector3());
   const dragonQuestFocusRef = useRef(new Vector3(playerPosition[0], 0.5, playerPosition[2]));
   const dragonQuestDesiredRef = useRef(new Vector3());
   const previousCameraMode = useRef<CameraMode | null>(null);
@@ -92,18 +94,27 @@ export function Scene() {
         // Third-person view (behind player)
         const distance = 6;
         const height = 3;
+        const focus = thirdPersonFocusRef.current;
+        const desiredFocus = thirdPersonDesiredRef.current.set(
+          playerPosition[0],
+          0.5,
+          playerPosition[2]
+        );
+
+        if (previousCameraMode.current !== "third-person") {
+          focus.copy(desiredFocus);
+        } else {
+          focus.lerp(desiredFocus, smoothing);
+        }
 
         // Calculate camera position behind player based on player rotation
-        const camX = targetX - Math.sin(playerRotation) * distance;
-        const camZ = targetZ - Math.cos(playerRotation) * distance;
-        const camY = height;
+        const camX = focus.x - Math.sin(playerRotation) * distance;
+        const camZ = focus.z - Math.cos(playerRotation) * distance;
 
-        camera.position.x += (camX - camera.position.x) * smoothing;
-        camera.position.y += (camY - camera.position.y) * smoothing;
-        camera.position.z += (camZ - camera.position.z) * smoothing;
+        camera.position.set(camX, height, camZ);
 
-        // Look at a point slightly above the player
-        camera.lookAt(targetX, 0.5, targetZ);
+        // Look at the smoothed focus point above the player
+        camera.lookAt(focus.x, focus.y, focus.z);
         break;
       }
 
