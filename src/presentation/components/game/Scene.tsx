@@ -35,6 +35,8 @@ export function Scene() {
   const dragonQuestDistance = useCameraStore((state) => state.dragonQuestDistance);
   const mapName = useGameStore((state) => state.mapName);
   const { camera } = useThree();
+  const isometricFocusRef = useRef(new Vector3(playerPosition[0], 0.5, playerPosition[2]));
+  const isometricDesiredRef = useRef(new Vector3());
   const dragonQuestFocusRef = useRef(new Vector3(playerPosition[0], 0.5, playerPosition[2]));
   const dragonQuestDesiredRef = useRef(new Vector3());
   const previousCameraMode = useRef<CameraMode | null>(null);
@@ -67,14 +69,22 @@ export function Scene() {
         const offsetZ = Math.cos(Math.PI / 4) * distance;
         const height = distance * 0.7;
 
-        const camX = targetX + offsetX;
-        const camY = height;
-        const camZ = targetZ + offsetZ;
+        const focus = isometricFocusRef.current;
+        const desiredFocus = isometricDesiredRef.current.set(targetX, 0.5, targetZ);
 
-        camera.position.x += (camX - camera.position.x) * smoothing;
-        camera.position.y += (camY - camera.position.y) * smoothing;
-        camera.position.z += (camZ - camera.position.z) * smoothing;
-        camera.lookAt(targetX, 0, targetZ);
+        if (previousCameraMode.current !== "isometric") {
+          focus.copy(desiredFocus);
+        } else {
+          focus.lerp(desiredFocus, smoothing);
+        }
+
+        camera.position.set(
+          focus.x + offsetX,
+          height,
+          focus.z + offsetZ
+        );
+
+        camera.lookAt(focus.x, 0.5, focus.z);
         break;
       }
 
