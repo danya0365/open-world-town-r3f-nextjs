@@ -22,14 +22,14 @@ export function TownSquareMap() {
   const myPlayerId = useMultiplayerStore((state) => state.myPlayerId);
   const players = useMultiplayerStore((state) => state.players);
 
-  const tablePosition = useMemo(() => new Vector3(-2, 0, 2), []);
+  const tablePosition = useMemo(() => new Vector3(6, 0, 6), []);
   const seatOffsets = useMemo<readonly Vector3[]>(
     () => [
-      new Vector3(-1.2, 0, 0),
-      new Vector3(-0.4, 0, 1.1),
-      new Vector3(0.8, 0, 1.1),
-      new Vector3(1.6, 0, 0),
-      new Vector3(0.2, 0, -1.2),
+      new Vector3(-2.8, 0, 0),
+      new Vector3(-1.4, 0, 2.4),
+      new Vector3(1.4, 0, 2.4),
+      new Vector3(2.8, 0, 0),
+      new Vector3(0, 0, -2.6),
     ],
     []
   );
@@ -205,27 +205,47 @@ export function TownSquareMap() {
 
       {/* Caribbean Poker Table */}
       <group position={tablePosition.toArray() as [number, number, number]}>
-        {/* โต๊ะหลัก */}
-        <Cylinder args={[2.5, 2.5, 0.3, 32]} position={[0, 0.3, 0]} rotation={[Math.PI / 2, 0, 0]} castShadow>
+        {/* พื้นฐานโต๊ะ (Base Platform) */}
+        <Cylinder args={[3.5, 3.5, 0.1, 32]} position={[0, 0.05, 0]} receiveShadow>
           <meshStandardMaterial color="#1F2937" />
         </Cylinder>
-        <Cylinder args={[2.7, 2.7, 0.1, 32]} position={[0, 0.25, 0]} rotation={[Math.PI / 2, 0, 0]} receiveShadow>
-          <meshStandardMaterial color="#10B981" />
+
+        {/* ขาโต๊ะกลาง */}
+        <Cylinder args={[0.25, 0.25, 0.8, 16]} position={[0, 0.4, 0]} castShadow>
+          <meshStandardMaterial color="#78350F" />
+        </Cylinder>
+
+        {/* โต๊ะหลัก - ขอบไม้ */}
+        <Cylinder args={[2.0, 2.0, 0.2, 32]} position={[0, 0.9, 0]} castShadow>
+          <meshStandardMaterial color="#92400E" />
+        </Cylinder>
+
+        {/* พื้นโต๊ะสีเขียว (Felt) */}
+        <Cylinder args={[1.8, 1.8, 0.05, 32]} position={[0, 1.02, 0]} receiveShadow>
+          <meshStandardMaterial color="#047857" roughness={0.9} />
+        </Cylinder>
+
+        {/* เส้นตกแต่งบนโต๊ะ */}
+        <Cylinder args={[1.5, 1.5, 0.02, 32]} position={[0, 1.05, 0]} receiveShadow>
+          <meshStandardMaterial color="#FBBF24" metalness={0.3} roughness={0.7} />
         </Cylinder>
 
         {/* ป้ายชื่อโต๊ะ */}
-        <Text position={[0, 0.6, 0]} fontSize={0.4} color="#FBBF24" anchorX="center" anchorY="middle">
+        <Text 
+          position={[0, 1.1, 0]} 
+          fontSize={0.3} 
+          color="#FBBF24" 
+          anchorX="center" 
+          anchorY="middle"
+          outlineWidth={0.015}
+          outlineColor="#000000"
+        >
           Caribbean Poker
         </Text>
 
-        {/* พื้นที่รอบโต๊ะ */}
-        <Cylinder args={[3.2, 3.2, 0.05, 32]} position={[0, 0.05, 0]} rotation={[Math.PI / 2, 0, 0]} receiveShadow>
-          <meshStandardMaterial color="#374151" />
-        </Cylinder>
-
         {/* ที่นั่ง */}
         {seatOffsets.map((offset, index) => {
-          const seatPosition = offset.clone().setY(0.2);
+          const seatPosition = offset.clone().setY(0);
           const occupant = seats[index]?.playerId ?? null;
           const isOccupied = Boolean(occupant);
           const isFocused = index === focusedSeatIndex;
@@ -235,37 +255,84 @@ export function TownSquareMap() {
               : undefined;
           const seatLabel = `Seat ${index + 1}`;
 
+          // คำนวณมุมสำหรับหมุนเก้าอี้ให้หันเข้าหาโต๊ะ
+          const angleToTable = Math.atan2(-offset.x, -offset.z);
+
           return (
-            <group key={`seat-${index}`} position={seatPosition.toArray() as [number, number, number]}>
-              <Cylinder args={[0.4, 0.4, 0.2, 16]} rotation={[Math.PI / 2, 0, 0]} castShadow>
-                <meshStandardMaterial
-                  color={isOccupied ? "#EF4444" : "#38BDF8"}
-                  emissive={isFocused ? "#22D3EE" : "#000000"}
-                  emissiveIntensity={isFocused ? 0.4 : 0}
-                />
+            <group 
+              key={`seat-${index}`} 
+              position={seatPosition.toArray() as [number, number, number]}
+              rotation={[0, angleToTable, 0]}
+            >
+              {/* ฐานเก้าอี้ */}
+              <Cylinder args={[0.4, 0.4, 0.05, 16]} position={[0, 0.025, 0]} castShadow>
+                <meshStandardMaterial color="#374151" />
               </Cylinder>
-              <Text
-                position={[0, 0.42, 0]}
-                fontSize={0.16}
-                color="#F8FAFC"
-                anchorX="center"
-                anchorY="middle"
-              >
-                {seatLabel}
-              </Text>
-              <Text
-                position={[0, 0.18, 0]}
-                fontSize={0.13}
-                color={isOccupied ? "#FCA5A5" : "#A5F3FC"}
-                anchorX="center"
-                anchorY="middle"
-              >
-                {isOccupied
-                  ? occupant === myPlayerId
-                    ? "คุณกำลังนั่ง"
-                    : occupantName ?? "มีผู้เล่น"
-                  : "ว่าง"}
-              </Text>
+              
+              {/* ขาเก้าอี้ 4 ขา */}
+              {[
+                [-0.2, 0, -0.2],
+                [0.2, 0, -0.2],
+                [-0.2, 0, 0.2],
+                [0.2, 0, 0.2],
+              ].map((legPos, i) => (
+                <Cylinder 
+                  key={`leg-${i}`}
+                  args={[0.05, 0.05, 0.5, 8]} 
+                  position={legPos as [number, number, number]}
+                  castShadow
+                >
+                  <meshStandardMaterial color="#1F2937" />
+                </Cylinder>
+              ))}
+
+              {/* ที่นั่ง */}
+              <Box args={[0.6, 0.08, 0.6]} position={[0, 0.54, 0]} castShadow>
+                <meshStandardMaterial
+                  color={isOccupied ? "#DC2626" : "#0EA5E9"}
+                  emissive={isFocused ? "#22D3EE" : "#000000"}
+                  emissiveIntensity={isFocused ? 0.6 : 0}
+                />
+              </Box>
+
+              {/* พนักพิง */}
+              <Box args={[0.6, 0.7, 0.08]} position={[0, 0.95, -0.26]} castShadow>
+                <meshStandardMaterial
+                  color={isOccupied ? "#DC2626" : "#0EA5E9"}
+                  emissive={isFocused ? "#22D3EE" : "#000000"}
+                  emissiveIntensity={isFocused ? 0.6 : 0}
+                />
+              </Box>
+
+              {/* ป้ายที่นั่ง - ลอยเหนือเก้าอี้ */}
+              <group position={[0, 1.6, 0]} rotation={[0, -angleToTable, 0]}>
+                <Text
+                  position={[0, 0.15, 0]}
+                  fontSize={0.18}
+                  color="#FFFFFF"
+                  anchorX="center"
+                  anchorY="middle"
+                  outlineWidth={0.012}
+                  outlineColor="#000000"
+                >
+                  {seatLabel}
+                </Text>
+                <Text
+                  position={[0, -0.05, 0]}
+                  fontSize={0.14}
+                  color={isOccupied ? "#FCA5A5" : "#BAE6FD"}
+                  anchorX="center"
+                  anchorY="middle"
+                  outlineWidth={0.01}
+                  outlineColor="#000000"
+                >
+                  {isOccupied
+                    ? occupant === myPlayerId
+                      ? "คุณกำลังนั่ง"
+                      : occupantName ?? "มีผู้เล่น"
+                    : "ว่าง"}
+                </Text>
+              </group>
             </group>
           );
         })}
