@@ -18,19 +18,24 @@ import { SpatialAudioManager } from "./SpatialAudioManager";
 import { NotificationCenter } from "../feedback/NotificationCenter";
 import { DragonQuestControls } from "./DragonQuestControls";
 import { useMultiplayerStore } from "@/src/presentation/stores/multiplayerStore";
+import type { CharacterType } from "./CharacterSelection";
+
+interface GameViewProps {
+  selectedCharacter: CharacterType;
+}
 
 /**
  * Game View Component
  * Main view for the game page with canvas and UI overlays
  */
-export function GameView() {
+export function GameView({ selectedCharacter }: GameViewProps) {
   const [showDebug, setShowDebug] = useState(false);
   const isConnected = useMultiplayerStore((state) => state.isConnected);
 
   return (
     <div className="relative w-full h-screen overflow-hidden">
       {/* Lobby UI - Show when not connected */}
-      {!isConnected && <LobbyUI />}
+      {!isConnected && <LobbyUI selectedCharacter={selectedCharacter} />}
 
       {/* Game Canvas */}
       <GameCanvas />

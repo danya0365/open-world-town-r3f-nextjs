@@ -15,6 +15,7 @@ export class GameRoom extends Room<GameState> {
   state = new GameState();
   private updateInterval?: NodeJS.Timeout;
   private npcIdCounter = 0;
+  private usedCharacters: Set<string> = new Set(); // Track which characters are in use
 
   onCreate(options: GameRoomOptions) {
     console.log("🎮 GameRoom created!", options);
@@ -73,6 +74,18 @@ export class GameRoom extends Room<GameState> {
         { except: client }
       );
     });
+    
+    this.onMessage("get_available_characters", (client) => {
+      const allCharacters = ["warrior", "mage", "archer", "rogue"];
+      const availableCharacters = allCharacters.filter(
+        (char) => !this.usedCharacters.has(char)
+      );
+      
+      client.send("available_characters", {
+        available: availableCharacters,
+        used: Array.from(this.usedCharacters),
+      });
+    });
 
     // Spawn initial NPCs
     this.spawnInitialNPCs();
@@ -88,10 +101,18 @@ export class GameRoom extends Room<GameState> {
   onJoin(client: Client, options: any) {
     console.log(`👤 Player ${client.sessionId} joined!`);
 
+    const characterType = options.characterType || "warrior";
+    
+    // Check if character is already in use
+    if (this.usedCharacters.has(characterType)) {
+      console.warn(`⚠️  Character ${characterType} already in use, assigning to ${client.sessionId} anyway`);
+    }
+
     // Create new player
     const player = new Player();
     player.id = client.sessionId;
     player.username = options.username || `Player${this.clients.length}`;
+    player.characterType = characterType;
     
     // Random spawn position (-5 to 5)
     player.x = Math.random() * 10 - 5;
@@ -99,6 +120,9 @@ export class GameRoom extends Room<GameState> {
     player.z = Math.random() * 10 - 5;
     player.rotation = 0;
     player.timestamp = Date.now();
+
+    // Mark character as used
+    this.usedCharacters.add(characterType);
 
     // Add player to state
     this.state.players.set(client.sessionId, player);
@@ -122,6 +146,9 @@ export class GameRoom extends Room<GameState> {
     const player = this.state.players.get(client.sessionId);
 
     if (player) {
+      // Free up the character
+      this.usedCharacters.delete(player.characterType);
+      
       // Broadcast leave message
       this.broadcast("player_left", {
         playerId: client.sessionId,
@@ -130,7 +157,7 @@ export class GameRoom extends Room<GameState> {
 
       // Remove player from state
       this.state.players.delete(client.sessionId);
-      console.log(`🗑️  Removed player "${player.username}" from game`);
+      console.log(`🗑️  Removed player "${player.username}" (${player.characterType}) from game`);
     }
   }
 

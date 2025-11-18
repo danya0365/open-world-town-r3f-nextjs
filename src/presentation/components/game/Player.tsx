@@ -5,9 +5,11 @@ import { usePlayerStore } from "@/src/presentation/stores/playerStore";
 import { useMultiplayerStore } from "@/src/presentation/stores/multiplayerStore";
 import { useCameraStore } from "@/src/presentation/stores/cameraStore";
 import { useControls } from "./Controls";
+import { CharacterModel } from "./CharacterModel";
 import { useRef, useMemo } from "react";
 import type { Mesh } from "three";
 import * as THREE from "three";
+import type { CharacterType } from "./CharacterSelection";
 
 /**
  * Player Component
@@ -17,12 +19,23 @@ export function Player() {
   const meshRef = useRef<Mesh>(null);
   const headRef = useRef<Mesh>(null);
   const { position, rotation, isMoving, movePlayer } = usePlayerStore();
-  const { sendMove, isConnected } = useMultiplayerStore();
+  const { sendMove, isConnected, room } = useMultiplayerStore();
   const cameraMode = useCameraStore((state) => state.mode);
   const dragonQuestAngle = useCameraStore((state) => state.dragonQuestAngle);
   const thirdPersonAngle = useCameraStore((state) => state.thirdPersonAngle);
   const rotateThirdPersonCamera = useCameraStore((state) => state.rotateThirdPersonCamera);
   const keys = useControls();
+  
+  // Get player's character type from room state
+  const characterType = useMemo<CharacterType>(() => {
+    if (isConnected && room?.state?.players) {
+      const myPlayer = Array.from(room.state.players.values()).find(
+        (p: any) => p.id === room.sessionId
+      );
+      return (myPlayer?.characterType as CharacterType) || "warrior";
+    }
+    return "warrior";
+  }, [isConnected, room]);
   
   // Animation state
   const animTime = useRef(0);
@@ -134,36 +147,22 @@ export function Player() {
   });
 
   return (
-    <group>
-      {/* Player Body */}
-      <mesh ref={meshRef} position={position} castShadow>
-        <boxGeometry args={[0.8, 1.6, 0.8]} />
-        <meshStandardMaterial color={isMoving ? "#4CAF50" : "#2196F3"} />
-      </mesh>
-
-      {/* Player Head */}
-      <mesh ref={headRef} position={[position[0], position[1] + 1.2, position[2]]} castShadow>
-        <sphereGeometry args={[0.4, 16, 16]} />
-        <meshStandardMaterial color="#FFD700" />
-      </mesh>
+    <group ref={meshRef} position={position} rotation-y={rotation}>
+      {/* Character Model */}
+      <CharacterModel 
+        characterType={characterType} 
+        isMoving={isMoving}
+        headYOffset={headRef.current ? headRef.current.position.y : 1.2}
+      />
 
       {/* Direction Indicator */}
-      <mesh
-        position={[
-          position[0] + Math.sin(rotation) * 0.6,
-          position[1] + 0.8,
-          position[2] + Math.cos(rotation) * 0.6,
-        ]}
-      >
+      <mesh position={[0, 0.8, 0.6]}>
         <coneGeometry args={[0.2, 0.4, 8]} />
         <meshStandardMaterial color="#FF5722" />
       </mesh>
 
       {/* Shadow Circle */}
-      <mesh
-        rotation={[-Math.PI / 2, 0, 0]}
-        position={[position[0], 0.01, position[2]]}
-      >
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.01, 0]}>
         <circleGeometry args={[0.5, 16]} />
         <meshBasicMaterial color="#000000" opacity={0.3} transparent />
       </mesh>

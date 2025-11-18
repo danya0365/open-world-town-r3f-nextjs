@@ -22,12 +22,17 @@ import {
   X,
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import type { CharacterType } from "./CharacterSelection";
+
+interface LobbyUIProps {
+  selectedCharacter: CharacterType;
+}
 
 /**
  * Lobby UI Component
  * Shows available rooms and allows creating/joining rooms
  */
-export function LobbyUI() {
+export function LobbyUI({ selectedCharacter }: LobbyUIProps) {
   const {
     isConnected,
     connect,
@@ -160,6 +165,7 @@ export function LobbyUI() {
           mapName,
           password: roomPassword.trim() || undefined,
           hasPassword: !!roomPassword.trim(),
+          characterType: selectedCharacter,
         },
       });
       setShowCreateRoom(false);
@@ -178,7 +184,12 @@ export function LobbyUI() {
     }
 
     try {
-      await connect(username, { roomId });
+      await connect(username, { 
+        roomId,
+        additionalOptions: {
+          characterType: selectedCharacter,
+        },
+      });
     } catch (error) {
       console.error("Failed to join room:", error);
       alert("ไม่สามารถเข้าร่วมห้องได้");
@@ -192,7 +203,11 @@ export function LobbyUI() {
     }
 
     try {
-      await connect(username);
+      await connect(username, {
+        additionalOptions: {
+          characterType: selectedCharacter,
+        },
+      });
     } catch (error) {
       console.error("Failed to quick join:", error);
       alert("ไม่สามารถเข้าร่วมห้องได้");

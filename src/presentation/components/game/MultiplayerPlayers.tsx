@@ -2,9 +2,11 @@
 
 import { useMultiplayerStore } from "@/src/presentation/stores/multiplayerStore";
 import { Billboard, Text } from "@react-three/drei";
+import { CharacterModel } from "./CharacterModel";
 import { useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import type { Group } from "three";
+import type { CharacterType } from "./CharacterSelection";
 
 /**
  * Linear interpolation helper
@@ -43,6 +45,7 @@ function MultiplayerPlayer({
   z,
   rotation,
   isMoving,
+  characterType,
 }: {
   username: string;
   x: number;
@@ -50,6 +53,7 @@ function MultiplayerPlayer({
   z: number;
   rotation: number;
   isMoving: boolean;
+  characterType: CharacterType;
 }) {
   const groupRef = useRef<Group>(null);
   const headRef = useRef<any>(null);
@@ -104,27 +108,16 @@ function MultiplayerPlayer({
   });
 
   return (
-    <group ref={groupRef}>
-      {/* Player Body */}
-      <mesh position={[0, 0, 0]} castShadow>
-        <boxGeometry args={[0.8, 1.6, 0.8]} />
-        <meshStandardMaterial color={isMoving ? "#FF9800" : "#9C27B0"} />
-      </mesh>
-
-      {/* Player Head */}
-      <mesh ref={headRef} position={[0, 1.2, 0]} castShadow>
-        <sphereGeometry args={[0.4, 16, 16]} />
-        <meshStandardMaterial color="#E91E63" />
-      </mesh>
+    <group ref={groupRef} rotation={[0, currentPos.current.rotation, 0]}>
+      {/* Character Model */}
+      <CharacterModel
+        characterType={characterType}
+        isMoving={isMoving}
+        headYOffset={headRef.current ? headRef.current.position.y : 1.2}
+      />
 
       {/* Direction Indicator */}
-      <mesh
-        position={[
-          Math.sin(currentPos.current.rotation) * 0.6,
-          0.8,
-          Math.cos(currentPos.current.rotation) * 0.6,
-        ]}
-      >
+      <mesh position={[0, 0.8, 0.6]}>
         <coneGeometry args={[0.2, 0.4, 8]} />
         <meshStandardMaterial color="#FF5722" />
       </mesh>
@@ -134,6 +127,9 @@ function MultiplayerPlayer({
         <circleGeometry args={[0.5, 16]} />
         <meshBasicMaterial color="#000000" opacity={0.3} transparent />
       </mesh>
+      
+      {/* Hidden head ref for animation */}
+      <mesh ref={headRef} visible={false} position={[0, 1.2, 0]} />
 
       {/* Username Label Billboard */}
       <Billboard position={[0, 2.5, 0]} follow={true} lockX={false} lockY={false} lockZ={false}>
@@ -178,6 +174,7 @@ export function MultiplayerPlayers() {
         z: player.z,
         rotation: player.rotation,
         isMoving: player.isMoving,
+        characterType: (player.characterType as CharacterType) || "warrior",
       }));
   }, [players, myPlayerId, isConnected]);
 
@@ -196,6 +193,7 @@ export function MultiplayerPlayers() {
           z={player.z}
           rotation={player.rotation}
           isMoving={player.isMoving}
+          characterType={player.characterType}
         />
       ))}
     </group>

@@ -7,6 +7,7 @@ import { Schema, type, MapSchema } from "@colyseus/schema";
 export class Player extends Schema {
   @type("string") id: string = "";
   @type("string") username: string = "";
+  @type("string") characterType: string = "warrior"; // warrior, mage, archer, rogue
   @type("number") x: number = 0;
   @type("number") y: number = 0;
   @type("number") z: number = 0;
